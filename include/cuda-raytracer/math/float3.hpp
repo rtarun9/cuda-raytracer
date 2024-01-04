@@ -12,9 +12,9 @@ namespace math
     {
     public:
         // Basic constructors.
-        float3() {}
-        float3(const float r, const float g, const float b) : r(r), g(g), b(b) {}
-        float3(const float x) : r(x), g(x), b(x) {}
+        constexpr float3() {}
+        constexpr float3(const float r, const float g, const float b) : r(r), g(g), b(b) {}
+        constexpr float3(const float x) : r(x), g(x), b(x) {}
 
         // Mathematic operations
         const float magnitude() const
@@ -57,10 +57,16 @@ namespace math
             return float3(-1.0f * r, -1.0f * g, -1.0f * b);
         }
 
+        float3 operator*(const float t) const
+        {
+            return float3(r * t, g * t, b * t);
+        }
+
         // Debugging functions.
         friend std::ostream &operator<<(std::ostream &out, const float3 f)
         {
             out << std::format("({}, {}, {})", f.r, f.g, f.b);
+            return out;
         }
 
         static float dot(const float3& x, const float3& y)

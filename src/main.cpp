@@ -5,43 +5,62 @@
 #include <vector>
 
 #include "types.hpp"
+#include "image.hpp"
 #include "math/float3.hpp"
-#include "stb/stb_image_write.h"
-
-std::vector<u8> normalized_float3_to_buffer(const math::float3 &x)
-{
-    return {static_cast<u8>(255.0f * x.r), static_cast<u8>(255.0f * x.g), static_cast<u8>(255.0f * x.b)};
-}
 
 int main()
 {
-    constexpr u32 width = 256 * 2;
-    constexpr u32 height = 256;
+    // Image setup.
+    constexpr float aspect_ratio = 16.0f / 9.0f;
+    constexpr u32 image_width = 5;
+    constexpr u32 image_height = std::max(static_cast<u32>(image_width / aspect_ratio), 1u);
 
-    constexpr u32 max_color = 255;
-    constexpr u32 num_channels = 3;
+    image_t image(image_width, image_height);
 
-    std::vector<u8> buffer{};
+    // Viewport setup.
+    // The viewport is a rectangular region / grid which represents the part of the scene we are currently
+    // viewing.
+    // Note that aspect ratio is recomputed here, because this is the 'actual image aspect ratio' without integer rounding of
+    // or checks to ensure image_height is atleast 1u. The aspect_ratio variable defined above is the ideal aspect ratio, but what is 
+    // being computed for viewport is the 'actual' aspect ratio of the image.
+    constexpr float viewport_width = 4.0f;
+    constexpr float viewport_height = viewport_width / (static_cast<float>(image_width) / static_cast<float>(image_height));
 
-    for (const auto row : std::views::iota(0u, height))
+    // Focal length : distance from the camera center to the viewport.
+    constexpr float focal_length = 1.0f;
+
+    // Conventions used : Left handed coordinate system.
+    constexpr math::float3 camera_center = math::float3(0.0f, 0.0f, 0.0f);
+    constexpr math::float3 viewport_left_extent = math::float3(-1.0f * viewport_width, 0.0f, 0.0f);
+    constexpr math::float3 viewport_up_extent = math::float3(0.0f, viewport_height, 0.0f);
+
+    // The render-loop coordinates (row, col) are in image space, where origin is top left. 
+    // But the rays the camera shoots to the scene must be in view space (where the camera is at center / origin).
+    // The camera_center, and viewport extents will help in this coordinate system conversion.
+
+    for (const auto row : std::views::iota(0u, image_height))
     {
-        for (const auto col : std::views::iota(0u, width))
+        for (const auto col : std::views::iota(0u, image_width))
         {
+            // Normalization of row and col to the range of 0.0f to 1.0f.
+            const auto u = static_cast<float>(row) / static_cast<float>(image_height - 1);
+            const auto v = static_cast<float>(col) / static_cast<float>(image_width - 1);
+
+            // Using u, v to find the view space coordinate of viewport pixel.
+            const math::float3 pixel_position = viewport_left_extent * u + viewport_up_extent * (1.0f - v);
+            std::cout << pixel_position << " ";
+
             auto rgb = math::float3();
-            rgb.r = static_cast<float>(col) / static_cast<float>(width - 1);
-            rgb.g = static_cast<float>(row) / static_cast<float>(height - 1);
+            rgb.r = static_cast<float>(col) / static_cast<float>(image_width - 1);
+            rgb.g = static_cast<float>(row) / static_cast<float>(image_height - 1);
             rgb.b = 0.0f;
 
-            const auto rgb_buffer = normalized_float3_to_buffer(rgb);
-            buffer.insert(std::end(buffer), std::begin(rgb_buffer), std::end(rgb_buffer));
+            image.add_normalized_float3_to_buffer(rgb);
         }
+        std::cout << "\n";
     }
 
-    // Writing to file using stb.
-    if (int i = stbi_write_png("output.png", width, height, num_channels, buffer.data(), width * num_channels); i)
-    {
-        std::cout << "Succesfully wrote to file : output.png\n";
-    }
+    image.write_to_file("output.png");
 
     return EXIT_SUCCESS;
 }

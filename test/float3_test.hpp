@@ -2,7 +2,7 @@
 
 #include "math/float3.hpp"
 
-int main()
+void float3_test()
 {
     // Magnitude test.
     {
@@ -72,6 +72,14 @@ int main()
 
         const auto res = a - b;
         assert(((res.r == 2.0f) && (res.g == 3.0f) && (res.b == 4.0f)) && "float3 subtraction failed!");
+    }
+
+    // float3 and scalar multiplication test.
+    {
+        const math::float3 a(1.0f, 2.0f, 3.0f);
+
+        const auto res = a * 2.0f;
+        assert(((res.r == 2.0f) && (res.g == 4.0f) && (res.b == 6.0f)) && "float3 scalar multiplication failed!");
     }
 
     // Dot product test.
