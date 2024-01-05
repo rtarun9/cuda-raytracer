@@ -11,7 +11,7 @@
 class image_t
 {
 public:
-    image_t(const u32 width, const u32 height) : width(width), height(height) {}
+    constexpr image_t(const u32 width, const u32 height) : width(width), height(height) {}
 
     void add_normalized_float3_to_buffer(const math::float3 &x);
 

@@ -17,9 +17,12 @@ namespace math
         constexpr float3(const float x) : r(x), g(x), b(x) {}
 
         // Mathematic operations
-        const float magnitude() const
+
+        // since std::sqrt is not constexpr, this function (and all others that use it)
+        // are not marked as constexpr altogether.
+        float magnitude() const
         {
-            return std::sqrtf(r * r + g * g + b * b);
+            return std::sqrt(r * r + g * g + b * b);
         }
 
         const float len() const
@@ -47,19 +50,45 @@ namespace math
         {
             r -= other.r;
             g -= other.g;
-            b -= other.g;
+            b -= other.b;
 
             return *this;
         }
 
-        float3 operator-() const
+        constexpr float3 operator+(const float3 &other) const
+        {
+            return float3(r + other.r, g + other.g, b + other.b);
+        }
+
+        constexpr float3 operator-(const float3 &other) const
+        {
+            return float3(r - other.r, g - other.g, b - other.b);
+        }
+
+        constexpr float3 operator-() const
         {
             return float3(-1.0f * r, -1.0f * g, -1.0f * b);
         }
 
-        float3 operator*(const float t) const
+        constexpr float3 operator*(const float t) const
         {
             return float3(r * t, g * t, b * t);
+        }
+
+        constexpr float3 operator/(const float t) const
+        {
+            return float3(r / t, g / t, b / t);
+        }
+
+        static constexpr float dot(const float3 &x, const float3 &y)
+        {
+            return x.r * y.r + x.g * y.g + x.b * y.b;
+        }
+
+        // Returns (1.0f - t) * x + t * y;
+        static constexpr float3 lerp(const float3 &x, const float3 &y, const float t)
+        {
+            return x * (1.0f - t) + y * t;
         }
 
         // Debugging functions.
@@ -69,23 +98,9 @@ namespace math
             return out;
         }
 
-        static float dot(const float3& x, const float3& y)
-        {
-            return x.r * y.r + x.g * y.g + x.b * y.b;
-        }
-
     public:
         float r{0.0f};
         float g{0.0f};
         float b{0.0f};
     };
-
-    inline float3 operator+(const float3 &x, const float3 &y)
-    {
-        return float3(x.r + y.r, x.g + y.g, x.b + y.b);
-    }
-    inline float3 operator-(const float3 &x, const float3 &y)
-    {
-        return float3(x.r - y.r, x.g - y.g, x.b - y.b);
-    }
 }
