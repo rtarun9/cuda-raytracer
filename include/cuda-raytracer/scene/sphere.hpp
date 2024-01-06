@@ -12,6 +12,6 @@ namespace scene
         math::float3 center{};
         float radius{1.0f};
     
-        const std::optional<float> hit_by_ray(const math::ray_t &ray) const;
+        const std::optional<float> hit_by_ray(const math::ray_t &ray, const float min_t, const float max_t) const;
     };
 }

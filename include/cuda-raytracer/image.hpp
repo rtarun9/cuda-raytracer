@@ -21,7 +21,7 @@ public:
 private:
     static constexpr u32 num_channels = 3;
 
-private:
+public:
     u32 width{};
     u32 height{};
 

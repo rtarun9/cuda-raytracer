@@ -6,10 +6,11 @@
 
 void image_t::add_normalized_float3_to_buffer(const math::float3 &x)
 {
+    // The RGB color is being gamma converted and converted to 0 -> 255 range here.
     const auto rgb = std::vector{
-        static_cast<u8>(255.0f * x.r),
-        static_cast<u8>(255.0f * x.g),
-        static_cast<u8>(255.0f * x.b),
+        static_cast<u8>(255.0f * std::sqrt(x.r)),
+        static_cast<u8>(255.0f * std::sqrt(x.g)),
+        static_cast<u8>(255.0f * std::sqrt(x.b)),
     };
 
     buffer.insert(std::end(buffer), std::begin(rgb), std::end(rgb));

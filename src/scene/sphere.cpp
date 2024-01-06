@@ -5,7 +5,7 @@
 
 namespace scene
 {
-    const std::optional<float> sphere_t::hit_by_ray(const math::ray_t& ray) const
+    const std::optional<float> sphere_t::hit_by_ray(const math::ray_t& ray, const float min_t, const float max_t) const
     {
         // For a point P(x, y, z) to be on / inside / outside the sphere, we have to compare :
         // (P - sphere.center) . (P - sphere.center) and sphere.radius ^ 2              --- (i)
@@ -40,7 +40,19 @@ namespace scene
         const auto determinant = half_b * half_b - a * c; 
         if (determinant >= 0.0f)
         {
-            return (-half_b - std::sqrt(determinant)) / (a);
+            const auto t1 = (-half_b - std::sqrt(determinant)) / (a);
+            if (t1 >= min_t && t1 <= max_t)
+            {
+                return t1;
+            }
+            
+            const auto t2 = (-half_b + std::sqrt(determinant)) / (a);
+            if (t2 >= min_t && t2 <= max_t)
+            {
+                return t2;
+            }
+
+            return std::nullopt;
         }
         else
         {

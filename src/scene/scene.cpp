@@ -15,7 +15,7 @@ namespace scene
 
     std::optional<hit_details_t> scene_t::ray_hit(const math::ray_t& ray) const
     {
-        float min_t = 0.0f;
+        float min_t = 0.001f;
         float max_t = std::numeric_limits<float>::max();
 
         hit_details_t ray_hit_details{};
@@ -23,8 +23,8 @@ namespace scene
 
         for (const auto& sphere : spheres)
         {
-            const auto t = sphere.hit_by_ray(ray);
-            if (t.has_value() && t >= min_t && t <= max_t)
+            const auto t = sphere.hit_by_ray(ray, min_t, max_t);
+            if (t.has_value())
             {
                 // Fill hit_details struct.
                 ray_hit_details.ray_param_t = *t;

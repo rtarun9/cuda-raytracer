@@ -1,6 +1,7 @@
 set (SOURCE_FILES
     main.cpp
     image.cpp
+    renderer.cpp
     scene/sphere.cpp
     scene/scene.cpp
 )
