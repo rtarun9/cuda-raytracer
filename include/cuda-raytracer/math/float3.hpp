@@ -20,7 +20,7 @@ namespace math
 
         // since std::sqrt is not constexpr, this function (and all others that use it)
         // are not marked as constexpr altogether.
-        float magnitude() const
+        const float magnitude() const
         {
             return std::sqrt(r * r + g * g + b * b);
         }
@@ -41,7 +41,7 @@ namespace math
         {
             r += other.r;
             g += other.g;
-            b += other.g;
+            b += other.b;
 
             return *this;
         }
