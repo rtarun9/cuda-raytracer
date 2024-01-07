@@ -76,6 +76,16 @@ void float3_test()
         static_assert(((res.r == 2.0f) && (res.g == 3.0f) && (res.b == 4.0f)) && "float3 subtraction failed!");
     }
 
+    // Element wise multiplciation test.
+    {
+        constexpr math::float3 a(1.0f, 2.0f, 3.0f);
+        constexpr math::float3 b(-1.0f, -1.0f, -1.0f);
+
+        constexpr auto res = a * b;;
+        static_assert(((res.r == -1.0f) && (res.g == -2.0f) && (res.b == -3.0f)) && "float3 element wise multiplication failed!");
+    }
+
+
     // float3 and scalar multiplication test.
     {
         constexpr math::float3 a(1.0f, 2.0f, 3.0f);

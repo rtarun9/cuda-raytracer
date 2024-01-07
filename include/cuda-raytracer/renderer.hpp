@@ -18,4 +18,5 @@ public:
     float aspect_ratio{16.0f / 9.0f};
     math::float3 camera_center{0.0f, 0.0f, 0.0f};
     u32 sample_count{100u};
+    u32 max_depth{10u};
 };

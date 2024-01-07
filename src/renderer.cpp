@@ -37,8 +37,6 @@ void renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
     const auto viewport_upper_left = math::float3(-viewport_u.r / 2.0f, -1.0f * viewport_v.g / 2.0f, focal_length) - camera_center;
     const auto upper_left_pixel_position = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5f;
 
-    static constexpr u32 max_depth = 10u;
-
     for (const auto row : std::views::iota(0u, image.height))
     {
         for (const auto col : std::views::iota(0u, image.width))
@@ -67,7 +65,7 @@ void renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
                     return math::float3::lerp(white_color, teal_color, (ray_dir_y + 1.0f) * 0.5f);
                 };
 
-                const std::function<math::float3(math::ray_t, int)> get_color = [&](const math::ray_t ray, const int depth) -> math::float3
+                const std::function<math::float3(math::ray_t, u32)> get_color = [&](const math::ray_t ray, const u32 depth) -> math::float3
                 {
                     if (depth >= max_depth)
                     {
@@ -76,19 +74,8 @@ void renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
                     
                     if (const auto hit_record = scene.ray_hit(ray); hit_record.has_value())
                     {
-                        // If the ray hit an object (for now consider only diffuse material is used), a new ray is shot out.
-                        // The origin will be the hit point / point of intersection.
-                        // The direction will be randomized around a hemisphere centered at point of ray intersection.
-
-                        // If the direction and normal are having angle > 90 degrees, then 
-                        // we have to negate it since that ray does not lie in the hemisphere containing the normal.
-                        auto direction = utils::get_random_float3_in_sphere();
-                        if (math::float3::dot(direction, hit_record->normal) < 0.0f)
-                        {
-                            direction = -direction;
-                        }
-
-                        return get_color(math::ray_t(hit_record->point_of_intersection, direction), depth + 1) * 0.5f;
+                        auto direction = hit_record->mat->scatter_ray(ray, *hit_record);
+                        return get_color(direction, depth + 1) * hit_record->mat->albedo;
                     }
 
                     return get_background_color(camera_to_pixel_ray.direction.normalize().g);

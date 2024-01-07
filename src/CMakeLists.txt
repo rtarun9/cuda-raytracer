@@ -4,6 +4,8 @@ set (SOURCE_FILES
     renderer.cpp
     scene/sphere.cpp
     scene/scene.cpp
+    materials/lambertian_diffuse.cpp
+    materials/metal.cpp
 )
 
 add_executable(cuda-raytracer ${SOURCE_FILES})

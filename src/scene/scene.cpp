@@ -3,6 +3,8 @@
 #include "scene/sphere.hpp"
 #include "math/ray.hpp"
 
+#include "hit_details.hpp"
+
 #include <climits>
 #include <optional>
 
@@ -15,6 +17,12 @@ namespace scene
 
     std::optional<hit_details_t> scene_t::ray_hit(const math::ray_t& ray) const
     {
+        // The value of t is slightly greater than 0 because of shadow acne.
+        // There are situations where due to floating point precision problems, we may have 
+        // a case where the ray param at t is not the exact value, causing the intersection point to be 
+        // beneath the surface rather than on it. This will cause the ray to continuously intersect the surface of the sphere,
+        // causing continous intersections results in false - shadowing.
+        // By setting min_t to be greater than 0, this problem can be resolved.
         float min_t = 0.001f;
         float max_t = std::numeric_limits<float>::max();
 
@@ -46,6 +54,8 @@ namespace scene
                     ray_hit_details.back_face = true;
                     ray_hit_details.normal = normal * -1.0f;
                 }
+
+                ray_hit_details.mat = &sphere.mat;
 
                 max_t = *t;
 

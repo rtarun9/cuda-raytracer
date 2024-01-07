@@ -75,6 +75,11 @@ namespace math
             return float3(r * t, g * t, b * t);
         }
 
+        constexpr float3 operator*(const float3& other) const
+        {
+            return float3(r * other.r, g * other.g, b * other.b);
+        }
+
         constexpr float3 operator/(const float t) const
         {
             return float3(r / t, g / t, b / t);

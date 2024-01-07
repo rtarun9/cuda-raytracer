@@ -52,11 +52,11 @@ namespace scene
                 return t2;
             }
 
-            return std::nullopt;
         }
-        else
-        {
-            return std::nullopt;
-        }
+        
+        return std::nullopt; 
     }
-}
+} 
+
+
+

@@ -5,19 +5,10 @@
 
 #include "sphere.hpp"
 #include "math/ray.hpp"
+#include "hit_details.hpp"
 
 namespace scene
 {
-    // After a ray hits a object, the details at the point of intersection are stored in this struct.
-    struct hit_details_t
-    {
-        math::float3 point_of_intersection{};
-        float ray_param_t{};
-
-        math::float3 normal{};
-        bool back_face{false};
-    };
-
     // A abstraction that contains a list of hittable objects.
     class scene_t
     {
