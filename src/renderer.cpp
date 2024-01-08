@@ -18,13 +18,13 @@ void renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
     // Focal length : distance from the camera center to the viewport.
     constexpr float focal_length = 1.0f;
 
-    // Vectors along the viewport edge, u and v.
+    // Vectors along the viewport edge, u and v. Useful for getting the view space coordinate from image space coordinates.
     const math::float3 viewport_u = math::float3(viewport_width, 0.0f, 0.0f);
     const math::float3 viewport_v = math::float3(0.0f, -1.0f * viewport_height, 0.0f);
 
     // The image coordinates (row, col) are in image space, where origin is top left.
     // But the rays the camera shoots to the scene must be in view space (where the camera is at center / origin).
-    // The camera_center, and viewport vectors will help in this coordinate system conversion.
+    // The camera_center and viewport vectors will help in this coordinate system conversion.
     // The pixel grid is inset from the viewport edges by half pixel to pixel distance. This means the pixel locations are the actual
     // locations of the pixel (i.e the center) and not the upper left corner of the square representing the pixel.
     // See https://raytracing.github.io/images/fig-1.04-pixel-grid.jpg for more details. This also makes the viewport pixel grid
@@ -60,9 +60,9 @@ void renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
                 const auto get_background_color = [&](const float ray_dir_y) -> math::float3
                 {
                     constexpr auto white_color = math::float3(1.0f, 1.0f, 1.0f);
-                    constexpr auto teal_color = math::float3(0.1f, 0.9f, 0.7f);
+                    constexpr auto sky_blue_color = math::float3(0.5f, 0.7f, 1.0f);
 
-                    return math::float3::lerp(white_color, teal_color, (ray_dir_y + 1.0f) * 0.5f);
+                    return math::float3::lerp(white_color, sky_blue_color, (ray_dir_y + 1.0f) * 0.5f);
                 };
 
                 const std::function<math::float3(math::ray_t, u32)> get_color = [&](const math::ray_t ray, const u32 depth) -> math::float3
@@ -71,11 +71,16 @@ void renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
                     {
                         return math::float3(0.0f, 0.0f, 0.0f);
                     }
-                    
+
                     if (const auto hit_record = scene.ray_hit(ray); hit_record.has_value())
                     {
                         auto direction = hit_record->mat->scatter_ray(ray, *hit_record);
-                        return get_color(direction, depth + 1) * hit_record->mat->albedo;
+                        if (direction.has_value())
+                        {
+                            return get_color(*direction, depth + 1) * hit_record->mat->albedo;
+                        }
+
+                        return math::float3(0.0f, 0.0f, 0.0f);
                     }
 
                     return get_background_color(camera_to_pixel_ray.direction.normalize().g);

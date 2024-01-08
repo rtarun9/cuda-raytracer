@@ -5,9 +5,10 @@
 
 namespace material
 {
-    math::ray_t lambertian_diffuse::scatter_ray(const math::ray_t& ray, const hit_details_t &hit_details) const
+    std::optional<math::ray_t> lambertian_diffuse::scatter_ray(const math::ray_t& ray, const hit_details_t &hit_details) const
     {
-        // Direction is basically intersection point + normal + random float in sphere.
+        // Direction is basically intersection point + normal + random float in sphere. Having the addition with normal will result in the direction
+        // not being completely random, and rather be sort of close to the normal.
         // However, since scattered ray direction is this direction - intersection point, 
         // that term is not included explicitly in direction.
         math::float3 direction = (hit_details.normal + utils::get_random_float3_in_sphere().normalize()).normalize();

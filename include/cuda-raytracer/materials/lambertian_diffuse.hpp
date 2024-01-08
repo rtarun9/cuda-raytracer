@@ -9,6 +9,6 @@ namespace material
     public:
         constexpr lambertian_diffuse(const math::float3& albedo) : material_t(albedo) {}
 
-        math::ray_t scatter_ray(const math::ray_t& ray, const hit_details_t &hit_details) const;
+        std::optional<math::ray_t> scatter_ray(const math::ray_t& ray, const hit_details_t &hit_details) const;
     };
 }

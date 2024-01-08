@@ -6,6 +6,7 @@ set (SOURCE_FILES
     scene/scene.cpp
     materials/lambertian_diffuse.cpp
     materials/metal.cpp
+    materials/dielectric.cpp
 )
 
 add_executable(cuda-raytracer ${SOURCE_FILES})

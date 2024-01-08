@@ -3,6 +3,8 @@
 #include "math/float3.hpp"
 #include "math/ray.hpp"
 
+#include <optional>
+
 struct hit_details_t;
 
 namespace material
@@ -14,7 +16,8 @@ namespace material
     public:
         constexpr material_t(const math::float3& albedo) : albedo(albedo) {}
 
-        virtual math::ray_t scatter_ray(const math::ray_t& ray, const hit_details_t &hit_details) const = 0;
+        // Function returns a ray_t if the ray is scattered (and not just absorbed by the surface).
+        virtual std::optional<math::ray_t> scatter_ray(const math::ray_t& ray, const hit_details_t &hit_details) const = 0;
 
     public:
         math::float3 albedo{};
