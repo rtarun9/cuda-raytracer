@@ -52,6 +52,7 @@ namespace material
             return r0_square + (1 - r0_square) *  std::pow((1 - cos_theta), 5);
         };
 
+        // Perform reflection if either refraction is not possible, or if reflectance is above a random value.
         if (refraction_ratio * sin_theta_i > 1.0f || schlick_approximation(cos_theta_i, refraction_ratio) > utils::random_float_in_range_0_1())
         {
            return math::ray_t(hit_details.point_of_intersection, ((ray.direction.normalize() - N * 2.0f * math::float3::dot(N, ray.direction)).normalize() - hit_details.point_of_intersection).normalize());

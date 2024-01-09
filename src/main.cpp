@@ -21,7 +21,10 @@ int main()
     renderer_t renderer{};
     renderer.camera_center = math::float3(0.0f, 0.0f, 0.0f);
     renderer.max_depth = 100;
-    renderer.sample_count = 100;
+    renderer.sample_count = 10;
+    renderer.vertical_fov = 95.0f;
+    renderer.camera_center = math::float3(-2.0f, 5.0f, -7.0f);
+    renderer.camera_look_at = math::float3(0.0f, 0.0f, 1.0f);
 
     // Materials.
     constexpr material::lambertian_diffuse ground_sphere_mat = material::lambertian_diffuse(math::float3(0.8f, 0.8f, 0.0f));

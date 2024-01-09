@@ -111,6 +111,16 @@ void float3_test()
         static_assert(res == 12.0f && "float3 dot product failed!");
     }
 
+    // Cross product test.
+    {
+        constexpr math::float3 a(1.0f, 0.0f, 0.0f);
+        constexpr math::float3 b(0.0f, 1.0f, 0.0f);
+
+        constexpr auto res = math::float3::cross(a, b);
+        static_assert(res.r == 0.0f&& res.g == 0.0f&& res.b == 1.0f&& "float3 dot product failed!");
+    }
+
+ 
     // Lerp test.
     {
         constexpr math::float3 a(-1.0f, -2.0f, -3.0f);

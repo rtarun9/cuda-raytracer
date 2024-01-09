@@ -4,7 +4,7 @@
 #include "math/float3.hpp"
 
 #include "image.hpp"
-
+#include "math/utils.hpp"
 #include "scene/scene.hpp"
 
 // Abstraction for rendering a scene given camera position, scene, and image (that will contain the final rendered output).
@@ -16,7 +16,11 @@ public:
 
 public:
     float aspect_ratio{16.0f / 9.0f};
-    math::float3 camera_center{0.0f, 0.0f, 0.0f};
+    float vertical_fov{90.0f};
+
     u32 sample_count{100u};
     u32 max_depth{10u};
+
+    math::float3 camera_center{0.0f, 0.0f, 0.0f};
+    math::float3 camera_look_at{0.0f, 0.0f, 1.0f};
 };

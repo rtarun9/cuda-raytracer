@@ -86,8 +86,13 @@ namespace math
         }
 
         static constexpr float dot(const float3 &x, const float3 &y)
-        {
+        {        
             return x.r * y.r + x.g * y.g + x.b * y.b;
+        }
+
+        static constexpr float3 cross(const float3& x, const float3& y)
+        {
+            return float3(x.g * y.b - x.b * y.g, -1.0f * (x.r * y.b - y.r * x.b), x.r * y.g - y.r * x.g);
         }
 
         // Returns (1.0f - t) * x + t * y;
