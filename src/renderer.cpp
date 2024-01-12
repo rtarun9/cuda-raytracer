@@ -9,13 +9,12 @@
 void renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
 {
     // Setup of camera vectors.
-    const float focal_length = (camera_look_at - camera_center).magnitude();
 
     // Camera direction vectors to establish basis vectors.
     const math::float3 camera_front = (camera_look_at - camera_center).normalize();
 
     const math::float3 world_up = math::float3(0.0f, 1.0f, 0.0f);
-    const math::float3 camera_right = math::float3::cross(world_up,camera_front).normalize(); 
+    const math::float3 camera_right = math::float3::cross(world_up, camera_front).normalize();
     const math::float3 camera_up = math::float3::cross(camera_front, camera_right).normalize();
 
     std::cout << "camera_front, right, up : " << camera_front << " " << camera_right << " " << camera_up << std::endl;
@@ -24,17 +23,22 @@ void renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
     // The viewport is a rectangular region / grid in the 3D world that contains the image pixel grid.
     // The viewport in some terms is like the virtual window we are viewing the 3D world in.
     // In rasterization it is the near plane of the viewing frustum.
-    const float viewport_height = 2.0f * tanf(math::utils::degree_to_radians(vertical_fov / 2.0f)) * focal_length;
+    const float viewport_height = 2.0f * tanf(utils::degree_to_radians(vertical_fov / 2.0f)) * focal_distance;
     const float viewport_width = viewport_height * (static_cast<float>(image.width) / static_cast<float>(image.height));
 
     std::cout << "Viewport width and height : " << viewport_width << ", " << viewport_height << std::endl;
 
-    // Vectors along the viewport edge, u and v. Useful for getting the view space coordinate from image space coordinates.
+    // Vectors along the viewport edge, u and v. Useful for getting the world space from image space coordinates.
     const math::float3 viewport_u = camera_right * viewport_width;
     const math::float3 viewport_v = camera_up * -1.0f * viewport_height;
 
+    // Computation for focal radius and defocus u and v.
+    const float defocus_radius = tan(utils::degree_to_radians(defocus_angle) / 2.0f) * focal_distance;
+    const math::float3 defocus_u = camera_right * defocus_radius;
+    const math::float3 defocus_v = camera_up * -1.0f * defocus_radius;
+
     // The image coordinates (row, col) are in image space, where origin is top left.
-    // But the rays the camera shoots to the scene must be in view space (where the camera is at center / origin).
+    // But the rays the camera shoots to the scene must be in world space.
     // The camera_center and viewport vectors will help in this coordinate system conversion.
     // The pixel grid is inset from the viewport edges by half pixel to pixel distance. This means the pixel locations are the actual
     // locations of the pixel (i.e the center) and not the upper left corner of the square representing the pixel.
@@ -45,14 +49,15 @@ void renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
     const auto pixel_delta_u = viewport_u / static_cast<float>(image.width);
     const auto pixel_delta_v = viewport_v / static_cast<float>(image.height);
 
-    const auto viewport_upper_left = math::float3(-viewport_u.r / 2.0f, -1.0f * viewport_v.g / 2.0f, focal_length) + (camera_look_at - camera_center);
+    const auto viewport_upper_left = viewport_u * -0.5f + viewport_v * -0.5f + (camera_look_at - camera_center);
     const auto upper_left_pixel_position = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5f;
 
     for (const auto row : std::views::iota(0u, image.height))
     {
+        std::cout << "Progress : " << 100.0f * static_cast<float>(row) / image.height << "%\r";
         for (const auto col : std::views::iota(0u, image.width))
         {
-            // Using u, v to find the view space coordinate of viewport pixel.
+            // Using u, v to find the world space coordinate of viewport pixel.
             // pixel_delta_v and u after multiplication with col and row are of range : [0, viewport_v], [0, viewport_u]
 
             math::float3 color{0.0f, 0.0f, 0.0f};
@@ -64,9 +69,12 @@ void renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
                 // Idea behind the math:
                 // -0.5f + rand(0, 1) will be of range -0.5f, 0.5f.
                 // pixel_delta is the distance between two pixels. When you multiply that by a factor in range 0.5f, -0.5f, you get a position within the pixel 'grid'.
-                const math::float3 pixel_sample = pixel_center + pixel_delta_u * (-0.5f + utils::random_float_in_range_0_1()) + pixel_delta_v * (-0.5f + utils::random_float_in_range_0_1());
+                const math::float3 pixel_sample = pixel_center + pixel_delta_u * (-0.5f + utils::get_random_float_in_range_0_1()) + pixel_delta_v * (-0.5f + utils::get_random_float_in_range_0_1());
 
-                const auto camera_to_pixel_ray = math::ray_t(camera_center, pixel_sample - camera_center);
+                // Compute defocus ray.
+                const auto random_point_in_disc = utils::get_random_float3_in_disk();
+                const auto ray_origin = camera_center + defocus_u * random_point_in_disc.x + defocus_v * random_point_in_disc.y; 
+                const auto camera_to_pixel_ray = math::ray_t(ray_origin, (pixel_sample - ray_origin).normalize());
 
                 const auto get_background_color = [&](const float ray_dir_y) -> math::float3
                 {
@@ -94,14 +102,14 @@ void renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
                         return math::float3(0.0f, 0.0f, 0.0f);
                     }
 
-                    return get_background_color(camera_to_pixel_ray.direction.normalize().g);
+                    return get_background_color(ray.direction.normalize().y);
                 };
 
                 color += get_color(camera_to_pixel_ray, 0);
             };
 
             const auto inverse_sample_count = 1.0f / sample_count;
-            color = math::float3(std::clamp(color.r * inverse_sample_count, 0.0f, 1.0f), std::clamp(color.g * inverse_sample_count, 0.0f, 1.0f), std::clamp(color.b * inverse_sample_count, 0.0f, 1.0f));
+            color = math::float3(std::clamp(color.x * inverse_sample_count, 0.0f, 1.0f), std::clamp(color.y * inverse_sample_count, 0.0f, 1.0f), std::clamp(color.z * inverse_sample_count, 0.0f, 1.0f));
             image.add_normalized_float3_to_buffer(color);
         }
     }

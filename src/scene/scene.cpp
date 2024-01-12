@@ -24,7 +24,7 @@ namespace scene
         // causing continous intersections results in false - shadowing.
         // By setting min_t to be greater than 0, this problem can be resolved.
         float min_t = 0.001f;
-        float max_t = std::numeric_limits<float>::max();
+        float max_t = std::numeric_limits<float>::infinity();
 
         hit_details_t ray_hit_details{};
         bool ray_hit_object_in_scene = false;

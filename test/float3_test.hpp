@@ -29,7 +29,7 @@ void float3_test()
         const auto res = a.normalize();
         const auto denom = std::sqrtf(14.0f);
 
-        assert(((res.r == 1.0f / denom) && (res.g == 2.0f / denom) && (res.b == 3.0f / denom)) && "float3 normalize failed!");
+        assert(((res.x == 1.0f / denom) && (res.y == 2.0f / denom) && (res.z == 3.0f / denom)) && "float3 normalize failed!");
     }
 
     // += test.
@@ -38,7 +38,7 @@ void float3_test()
         const math::float3 b(-1.0f, -1.0f, -1.0f);
 
         a += b;
-        assert(((a.r == 0.0f) && (a.g == 1.0f) && (a.b == 2.0f)) && "float3 += failed!");
+        assert(((a.x == 0.0f) && (a.y == 1.0f) && (a.z == 2.0f)) && "float3 += failed!");
     }
 
     // -= test.
@@ -47,7 +47,7 @@ void float3_test()
         const math::float3 b(-1.0f, -1.0f, -1.0f);
 
         a -= b;
-        assert(((a.r == 2.0f) && (a.g == 3.0f) && (a.b == 4.0f)) && "float3 -= failed!");
+        assert(((a.x == 2.0f) && (a.y == 3.0f) && (a.z == 4.0f)) && "float3 -= failed!");
     }
 
     // negation test.
@@ -55,7 +55,7 @@ void float3_test()
         constexpr math::float3 a(1.0f, 2.0f, 3.0f);
 
         constexpr auto res = -a;
-        static_assert(((res.r == -1.0f) && (res.g == -2.0f) && (res.b == -3.0f)) && "float3 negation failed!");
+        static_assert(((res.x == -1.0f) && (res.y == -2.0f) && (res.z == -3.0f)) && "float3 negation failed!");
     }
 
     // Addition test.
@@ -64,7 +64,7 @@ void float3_test()
         constexpr math::float3 b(-1.0f, -1.0f, -1.0f);
 
         constexpr auto res = a + b;
-        static_assert(((res.r == 0.0f) && (res.g == 1.0f) && (res.b == 2.0f)) && "float3 addition failed!");
+        static_assert(((res.x == 0.0f) && (res.y == 1.0f) && (res.z == 2.0f)) && "float3 addition failed!");
     }
 
     // Subtraction test.
@@ -73,7 +73,7 @@ void float3_test()
         constexpr math::float3 b(-1.0f, -1.0f, -1.0f);
 
         constexpr auto res = a - b;
-        static_assert(((res.r == 2.0f) && (res.g == 3.0f) && (res.b == 4.0f)) && "float3 subtraction failed!");
+        static_assert(((res.x == 2.0f) && (res.y == 3.0f) && (res.z == 4.0f)) && "float3 subtraction failed!");
     }
 
     // Element wise multiplciation test.
@@ -82,7 +82,7 @@ void float3_test()
         constexpr math::float3 b(-1.0f, -1.0f, -1.0f);
 
         constexpr auto res = a * b;;
-        static_assert(((res.r == -1.0f) && (res.g == -2.0f) && (res.b == -3.0f)) && "float3 element wise multiplication failed!");
+        static_assert(((res.x == -1.0f) && (res.y == -2.0f) && (res.z == -3.0f)) && "float3 element wise multiplication failed!");
     }
 
 
@@ -91,7 +91,7 @@ void float3_test()
         constexpr math::float3 a(1.0f, 2.0f, 3.0f);
 
         constexpr auto res = a * 2.0f;
-        static_assert(((res.r == 2.0f) && (res.g == 4.0f) && (res.b == 6.0f)) && "float3 scalar multiplication failed!");
+        static_assert(((res.x == 2.0f) && (res.y == 4.0f) && (res.z == 6.0f)) && "float3 scalar multiplication failed!");
     }
 
     // float3 and scalar division test.
@@ -99,7 +99,7 @@ void float3_test()
         constexpr math::float3 a(1.0f, 2.0f, 3.0f);
 
         constexpr auto res = a / 2.0f;
-        static_assert(((res.r == 0.5f) && (res.g == 1.0f) && (res.b == 1.5f)) && "float3 scalar division failed!");
+        static_assert(((res.x == 0.5f) && (res.y == 1.0f) && (res.z == 1.5f)) && "float3 scalar division failed!");
     }
 
     // Dot product test.
@@ -117,7 +117,10 @@ void float3_test()
         constexpr math::float3 b(0.0f, 1.0f, 0.0f);
 
         constexpr auto res = math::float3::cross(a, b);
-        static_assert(res.r == 0.0f&& res.g == 0.0f&& res.b == 1.0f&& "float3 dot product failed!");
+        static_assert(res.x == 0.0f&& res.y == 0.0f&& res.z == 1.0f&& "float3 dot product failed!");
+
+        constexpr auto res2 = math::float3::cross(b, a);
+        static_assert(res2.x == 0.0f&& res2.y == 0.0f&& res2.z == -1.0f&& "float3 dot product failed!");
     }
 
  
@@ -127,12 +130,12 @@ void float3_test()
         constexpr math::float3 b(1.0f, 2.0f, 3.0f);
 
         constexpr auto res_0 = math::float3::lerp(a, b, 0.0f);
-        static_assert(res_0.r == -1.0f && res_0.g == -2.0f && res_0.b == -3.0f && "float3 lerp for t = 0.0f failed!");
+        static_assert(res_0.x == -1.0f && res_0.y == -2.0f && res_0.z == -3.0f && "float3 lerp for t = 0.0f failed!");
 
         constexpr auto res_0_5 = math::float3::lerp(a, b, 0.5f);
-        static_assert(res_0_5.r == 0.0f && res_0_5.g == 0.0f && res_0_5.b == 0.0f && "float3 lerp for t = 0.5f failed!");
+        static_assert(res_0_5.x == 0.0f && res_0_5.y == 0.0f && res_0_5.z == 0.0f && "float3 lerp for t = 0.5f failed!");
 
         constexpr auto res_1 = math::float3::lerp(a, b, 1.0f);
-        static_assert(res_1.r == 1.0f && res_1.g == 2.0f && res_1.b == 3.0f && "float3 lerp for t = 1.0f failed!");
+        static_assert(res_1.x == 1.0f && res_1.y == 2.0f && res_1.z == 3.0f && "float3 lerp for t = 1.0f failed!");
     }
 }

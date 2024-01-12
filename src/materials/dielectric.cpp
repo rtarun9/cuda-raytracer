@@ -33,7 +33,7 @@ namespace material
         const auto& N = hit_details.normal;
         const auto& V = -ray.direction.normalize();
 
-        const auto cos_theta_i = math::float3::dot(V, N);
+        const auto cos_theta_i = std::min(math::float3::dot(V, N), 1.0f);
         const auto sin_theta_i = std::sqrt(1 - cos_theta_i * cos_theta_i);
 
         // Before proceeding, note that the formula for computation of T requires a sqrt(1 - (sin(theta_i) * e) ^ 2).
@@ -49,13 +49,13 @@ namespace material
             const auto r0 = (1.0f - ior) / (1.0f + ior);
             const auto r0_square = r0 * r0;
 
-            return r0_square + (1 - r0_square) *  std::pow((1 - cos_theta), 5);
+            return r0_square + (1 - r0_square) *  std::pow((1.0f - cos_theta), 5);
         };
 
         // Perform reflection if either refraction is not possible, or if reflectance is above a random value.
-        if (refraction_ratio * sin_theta_i > 1.0f || schlick_approximation(cos_theta_i, refraction_ratio) > utils::random_float_in_range_0_1())
+        if (refraction_ratio * sin_theta_i > 1.0f || schlick_approximation(cos_theta_i, refraction_ratio) > utils::get_random_float_in_range_0_1())
         {
-           return math::ray_t(hit_details.point_of_intersection, ((ray.direction.normalize() - N * 2.0f * math::float3::dot(N, ray.direction)).normalize() - hit_details.point_of_intersection).normalize());
+           return math::ray_t(hit_details.point_of_intersection, (ray.direction - N * 2.0f * math::float3::dot(N, ray.direction)).normalize());
         }
 
         // Refract the ray if refraction is possible. 

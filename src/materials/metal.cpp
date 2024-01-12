@@ -11,8 +11,8 @@ namespace material
         // That -1 is present because cos is negative (as normal and incoming ray direction v have angle between them
         // > 90 degree).
         // The formula for reflection of v around n is : -2 * (v.n) * n + v.
-        math::float3 direction = ray.direction.normalize() + hit_details.normal * -2.0f * math::float3::dot(hit_details.normal, ray.direction);
-        direction = direction.normalize() + utils::get_random_float3_in_sphere().normalize() * fuzziness_factor;
+        math::float3 direction = ray.direction + hit_details.normal * -2.0f * math::float3::dot(hit_details.normal, ray.direction);
+        direction = direction.normalize() + utils::get_random_float3_in_sphere() * fuzziness_factor;
         direction = direction.normalize();
 
         // To introduce some fuzziness, the direction can be added with a random unit float3 and scaled with the fuzziness factor.

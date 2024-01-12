@@ -7,7 +7,7 @@
 #include <string>
 #include <string_view>
 
-// A simple image abstraction that provides method to create file / write to a output image file.
+// A simple image abstraction that provides method to create file / write to a output image file (currently, only png files are supported).
 class image_t
 {
 public:

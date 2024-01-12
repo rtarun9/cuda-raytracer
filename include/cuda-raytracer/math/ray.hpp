@@ -7,6 +7,7 @@ namespace math
     // A ray is essentially of the form p(x) = a + t * b where a is origin, b is direction
     // and t is a parameter.
     // Use the p(x) function to get a point on the ray p.
+    // Assumes that direction is already normalized.
     class ray_t
     {
     public:

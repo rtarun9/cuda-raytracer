@@ -15,7 +15,7 @@ namespace material
 
         // Check to see if the direction of scattered ray is close to 0 (i.e it is in the opposite direction of normal).
         constexpr float epsilon = 0.000001f;
-        if (std::fabs(direction.r) <= epsilon &&  std::fabs(direction.g) <= epsilon && std::fabs(direction.b) <= epsilon)
+        if (std::fabs(direction.x) <= epsilon &&  std::fabs(direction.y) <= epsilon && std::fabs(direction.z) <= epsilon)
         {
             direction = hit_details.normal;
         }
