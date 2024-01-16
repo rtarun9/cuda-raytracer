@@ -2,17 +2,17 @@
 
 #include "math/float3.hpp"
 #include "math/ray.hpp"
-#include "materials/material.hpp"
 
 #include <optional>
 
 namespace scene
 {
+    // The scene will have a list of materials, and the mat_index can be used to index into the material list.
     struct sphere_t
     {
         math::float3 center{};
         float radius{1.0f};
-        const material::material_t& mat;
+        size_t mat_index{};
 
         // Returns the ray parameter 't' if the ray hits the sphere and the value of t lies in the range
         // min_t and max_t. 

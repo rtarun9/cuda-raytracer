@@ -90,6 +90,9 @@ namespace math
             return a.x * b.x + a.y * b.y + a.z * b.z;
         }
 
+        // i    j   k
+        // ax   ay  az
+        // bx   by  bz
         static constexpr float3 cross(const float3& a, const float3& b)
         {
             return float3(a.y * b.z - a.z * b.y, -1.0f * (a.x * b.z - b.x * a.z), a.x * b.y - b.x * a.y);

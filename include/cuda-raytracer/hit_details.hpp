@@ -16,5 +16,6 @@ struct hit_details_t
     math::float3 normal{};
     bool back_face{false};
 
-    const material::material_t* mat{};
+    size_t material_index{};
 };
+

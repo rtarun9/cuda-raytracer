@@ -23,7 +23,7 @@ namespace scene
         // beneath the surface rather than on it. This will cause the ray to continuously intersect the surface of the sphere,
         // causing continous intersections results in false - shadowing.
         // By setting min_t to be greater than 0, this problem can be resolved.
-        float min_t = 0.001f;
+        float min_t = 0.01f;
         float max_t = std::numeric_limits<float>::infinity();
 
         hit_details_t ray_hit_details{};
@@ -55,7 +55,7 @@ namespace scene
                     ray_hit_details.normal = normal * -1.0f;
                 }
 
-                ray_hit_details.mat = &sphere.mat;
+                ray_hit_details.material_index =sphere.mat_index; 
 
                 max_t = *t;
 

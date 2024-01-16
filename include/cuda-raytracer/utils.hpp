@@ -30,14 +30,9 @@ namespace utils
         return math::float3(get_random_float_in_range(min, max), get_random_float_in_range(min, max), get_random_float_in_range(min, max));
     }
 
-    static math::float3 get_random_unit_float3()
-    {
-        return get_random_float3_in_range(0.0f, 1.0f);
-    }
-
     static math::float3 get_float3_in_cube()
     {
-        return math::float3(get_random_float_in_range(-1.0f, 1.0f),get_random_float_in_range(-1.0f, 1.0f), get_random_float_in_range(-1.0f, 1.0f));
+        return math::float3(get_random_float_in_range(-1.0f, 1.0f), get_random_float_in_range(-1.0f, 1.0f), get_random_float_in_range(-1.0f, 1.0f));
     }
 
     static math::float3 get_random_float3_in_sphere()
@@ -68,5 +63,16 @@ namespace utils
                 return random_float3;
             }
         }
+    }
+
+    static math::float3 get_random_unit_float3()
+    {
+        // If you get random float3 in cube, note that the range of values
+        // is [-1, -1, -1] to [1, 1, 1].
+        // The dist between diagonal corner and other corners is not the same.
+        // This can lead to potentially non - uniform distribution, which is what we want to avoid since lot of float3's will be along the (longest) diagonal in the cube.
+        // For that reason we first get random float3 in sphere, and then normalize it.
+        // https://github.com/RayTracing/raytracing.github.io/discussions/941
+        return get_random_float3_in_sphere().normalize();
     }
 }
