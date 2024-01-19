@@ -10,9 +10,32 @@
 
 namespace scene
 {
-    void scene_t::add_sphere(const sphere_t& sphere)
+    scene_t::scene_t()
     {
-        spheres.emplace_back(sphere);
+        spheres = (sphere_t**)malloc(sizeof(sphere_t*) * max_sphere_count);
+        materials = (material::material_t**)malloc(sizeof(material::material_t*) * max_material_count);
+    }
+
+    void scene_t::add_sphere(sphere_t& sphere)
+    {
+        if (num_spheres == max_sphere_count)
+        {
+            std::cout << "Not adding sphere to scene due to exceeding max sphere count.\n";
+            return;
+        }
+
+        spheres[num_spheres++] = &(sphere);
+    }
+        
+    uint32_t scene_t::add_material(material::material_t* mat)
+    {
+        if (num_materials == max_material_count)
+        {
+            std::cout << "Not adding material to scene due to exceeding max material count.\n";
+            return 0xFFFF'FFFF'FFFF'FFFF;
+        }
+
+        materials[num_materials++] = (mat);
     }
 
     std::optional<hit_details_t> scene_t::ray_hit(const math::ray_t& ray) const
@@ -29,16 +52,17 @@ namespace scene
         hit_details_t ray_hit_details{};
         bool ray_hit_object_in_scene = false;
 
-        for (const auto& sphere : spheres)
+        for (int i = 0; i < num_spheres; i++)
         {
-            const auto t = sphere.hit_by_ray(ray, min_t, max_t);
+            const sphere_t* sphere = spheres[i];
+            const auto t = sphere->hit_by_ray(ray, min_t, max_t);
             if (t.has_value())
             {
                 // Fill hit_details struct.
                 ray_hit_details.ray_param_t = *t;
                 ray_hit_details.point_of_intersection = ray.at(*t);
 
-                math::float3 normal = (ray_hit_details.point_of_intersection - sphere.center) / sphere.radius;
+                math::float3 normal = (ray_hit_details.point_of_intersection - sphere->center) / sphere->radius;
 
                 // To find if the ray hit a back face or front face.
                 // If the angle between normal and ray direction is greater than 90, then
@@ -55,7 +79,7 @@ namespace scene
                     ray_hit_details.normal = normal * -1.0f;
                 }
 
-                ray_hit_details.material_index =sphere.mat_index; 
+                ray_hit_details.material_index =sphere->mat_index; 
 
                 max_t = *t;
 

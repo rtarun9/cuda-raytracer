@@ -16,6 +16,6 @@ namespace scene
 
         // Returns the ray parameter 't' if the ray hits the sphere and the value of t lies in the range
         // min_t and max_t. 
-        const std::optional<float> hit_by_ray(const math::ray_t &ray, const float min_t, const float max_t) const;
+        __device__ const std::optional<float> hit_by_ray(const math::ray_t &ray, const float min_t, const float max_t) const;
     };
 }

@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <functional>
 
-void renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
+int* renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
 {
     // Viewport setup.
     // The viewport is a rectangular region / grid in the 3D world that contains the image pixel grid.
@@ -55,6 +55,15 @@ void renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
     // Note that camera center (a point) + camera_front * focus_distance (a vector) equals a point. (i.e the displacement of point by a vector yields a point).
     const auto viewport_upper_left = viewport_u * -0.5f + viewport_v * -0.5f + (camera_front * focus_distance + camera_center);
     const auto upper_left_pixel_position = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5f;
+
+    // Prepare buffers for cuda kernel.
+    int* host_frame_buffer = (int*)malloc(sizeof(int) * image.width * image.height);
+    int* dev_frame_buffer = nullptr;
+    utils::cuda_check(cudaMalloc(&dev_frame_buffer, (size_t)(sizeof(int) * image.width * image.height)));
+
+    // Prepare kernel execution launch parameters.
+    const dim3 threads_per_block = dim3(16, 16, 1); 
+    const dim3 blocks_per_grid = dim3((image.height + threads_per_block.x - 1) / threads_per_block.x, (image.width + threads_per_block.y - 1) / threads_per_block.y, 1u);
 
     for (const auto row : std::views::iota(0u, image.height))
     {

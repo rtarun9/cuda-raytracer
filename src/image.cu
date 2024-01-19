@@ -4,25 +4,12 @@
 
 #include <filesystem>
 
-void image_t::add_normalized_float3_to_buffer(const math::float3 &a)
-{
-    // The RGB color is being gamma corrected and converted to 0 -> 255 range here.
-    // While gamma is 1/2.2f, we can use sqrt as a optimization for speed up.
-    const auto rgb = std::vector{
-        static_cast<u8>(255.0f * std::sqrt(a.x)),
-        static_cast<u8>(255.0f * std::sqrt(a.y)),
-        static_cast<u8>(255.0f * std::sqrt(a.z)),
-    };
-
-    buffer.insert(std::end(buffer), std::begin(rgb), std::end(rgb));
-}
-
-void image_t::write_to_file(const std::string_view output_file_path)
+void image_t::write_to_file(int* const frame_buffer, const std::string_view output_file_path)
 {
     const auto write_png = [&](const std::string_view file_path)
     {
         // Writing to file using stb.
-        if (const int i = stbi_write_png(file_path.data(), width, height, num_channels, buffer.data(), width * num_channels); i)
+        if (const int i = stbi_write_png(file_path.data(), width, height, num_channels, frame_buffer, width * num_channels); i)
         {
             std::cout << "Succesfully wrote to file : " << output_file_path;
         }

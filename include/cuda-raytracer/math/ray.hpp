@@ -11,9 +11,9 @@ namespace math
     class ray_t
     {
     public:
-        constexpr ray_t(const float3 origin, const float3 direction) : origin(origin), direction(direction) {}
+        __device__ constexpr ray_t(const float3 origin, const float3 direction) : origin(origin), direction(direction) {}
 
-        constexpr float3 at(const float t) const { return origin + direction * t; }
+        __device__ constexpr float3 at(const float t) const { return origin + direction * t; }
 
     public:
         float3 origin{0.0f, 0.0f, 0.0f};

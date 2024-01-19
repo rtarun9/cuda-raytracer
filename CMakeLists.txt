@@ -5,9 +5,8 @@ set(CMAKE_CXX_STANDARD 20)
 project(
     cuda-raytracer
     VERSION 1.0
-    LANGUAGES CXX
+    LANGUAGES CXX CUDA
 )
 
-add_subdirectory(test)
 add_subdirectory(extern)
 add_subdirectory(src)

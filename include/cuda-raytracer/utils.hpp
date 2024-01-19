@@ -5,7 +5,15 @@
 
 namespace utils
 {
-    static inline float get_random_float_in_range_0_1()
+    static inline void cuda_check(const cudaError_t error)
+    {
+        if (error != cudaError_t::cudaSuccess)
+        {
+            std::cout << "ERROR!\n";
+        }
+    }
+
+    __host__ __device__ static inline float get_random_float_in_range_0_1()
     {
         static std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
         static std::mt19937 generator{};
@@ -13,29 +21,29 @@ namespace utils
         return distribution(generator);
     }
 
-    static inline float get_random_float_in_range(const float min, const float max)
+    __host__ __device__ static inline float get_random_float_in_range(const float min, const float max)
     {
         return min + (max - min) * get_random_float_in_range_0_1();
     }
 
     static constexpr float pi = 3.1415926535897932385f;
 
-    static inline float degree_to_radians(const float deg)
+    __host__ __device__ static inline float degree_to_radians(const float deg)
     {
         return (pi / 180.0f) * deg;
     }
 
-    static math::float3 get_random_float3_in_range(const float min, const float max)
+    __host__ __device__ static math::float3 get_random_float3_in_range(const float min, const float max)
     {
         return math::float3(get_random_float_in_range(min, max), get_random_float_in_range(min, max), get_random_float_in_range(min, max));
     }
 
-    static math::float3 get_float3_in_cube()
+    __host__ __device__ static math::float3 get_float3_in_cube()
     {
         return math::float3(get_random_float_in_range(-1.0f, 1.0f), get_random_float_in_range(-1.0f, 1.0f), get_random_float_in_range(-1.0f, 1.0f));
     }
 
-    static math::float3 get_random_float3_in_sphere()
+    __host__ __device__ static math::float3 get_random_float3_in_sphere()
     {
         // To get a random float3 in sphere, use the rejection method.
         // First get random float3 in cube (with w / h / d in range -1 to 1).
@@ -52,7 +60,7 @@ namespace utils
         }
     }
 
-    static math::float3 get_random_float3_in_disk()
+    __host__ __device__ static math::float3 get_random_float3_in_disk()
     {
         while (true)
         {
@@ -65,7 +73,7 @@ namespace utils
         }
     }
 
-    static math::float3 get_random_unit_float3()
+    __host__ __device__ static math::float3 get_random_unit_float3()
     {
         // If you get random float3 in cube, note that the range of values
         // is [-1, -1, -1] to [1, 1, 1].

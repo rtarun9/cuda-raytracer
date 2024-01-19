@@ -10,18 +10,28 @@
 
 namespace scene
 {
+    // note(rtarun9) : TODO : Cleanup of allocated resources throughout the project.
     // A abstraction that contains a list of hittable objects.
     class scene_t
     {
     public:
-        uint32_t get_current_mat_index() const { return static_cast<uint32_t>(materials.size() - 1); }
+        __host__ __device__ scene_t();
 
-        void add_sphere(const sphere_t &sphere);
+        uint32_t get_current_mat_index() { return num_materials - 1u;}
 
-        std::optional<hit_details_t> ray_hit(const math::ray_t &ray) const;
+        void add_sphere(sphere_t &sphere);
+        uint32_t add_material(material::material_t* mat);
+
+        __device__ std::optional<hit_details_t> ray_hit(const math::ray_t &ray) const;
 
     public:
-        std::vector<sphere_t> spheres{};
-        std::vector<std::shared_ptr<material::material_t>> materials;
+        uint32_t max_sphere_count{30u};
+        uint32_t max_material_count{30u};
+
+        sphere_t** spheres{};
+        uint32_t num_spheres{};
+
+        material::material_t** materials{};
+        uint32_t num_materials{};
     };
 }

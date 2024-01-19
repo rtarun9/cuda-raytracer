@@ -1,12 +1,12 @@
 set (SOURCE_FILES
-    main.cpp
-    image.cpp
-    renderer.cpp
-    scene/sphere.cpp
-    scene/scene.cpp
-    materials/lambertian_diffuse.cpp
-    materials/metal.cpp
-    materials/dielectric.cpp
+    main.cu
+    image.cu
+    renderer.cu
+    scene/sphere.cu
+    scene/scene.cu
+    materials/lambertian_diffuse.cu
+    materials/metal.cu
+    materials/dielectric.cu
 )
 
 add_executable(cuda-raytracer ${SOURCE_FILES})

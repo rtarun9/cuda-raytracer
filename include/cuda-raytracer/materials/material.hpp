@@ -15,10 +15,10 @@ namespace material
     class material_t
     {
     public:
-        constexpr material_t(const math::float3& albedo) : albedo(albedo) {}
+        __device__ constexpr material_t(const math::float3& albedo) : albedo(albedo) {}
 
         // Function returns a ray_t if the ray is scattered (and not absorbed by the surface).
-        virtual std::optional<math::ray_t> scatter_ray(const math::ray_t& ray, const hit_details_t &hit_details) const = 0;
+        __device__ virtual std::optional<math::ray_t> scatter_ray(const math::ray_t& ray, const hit_details_t &hit_details) const = 0;
 
     public:
         math::float3 albedo{};
