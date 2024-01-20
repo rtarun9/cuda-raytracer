@@ -5,7 +5,7 @@
 
 namespace scene
 {
-    const std::optional<float> sphere_t::hit_by_ray(const math::ray_t& ray, const float min_t, const float max_t) const
+    __device__ float sphere_t::hit_by_ray(const math::ray_t& ray, const float min_t, const float max_t) const
     {
         // For a point P(x, y, z) to be on / inside / outside the sphere, we have to compare :
         // (P - sphere.center) . (P - sphere.center) and sphere.radius ^ 2              --- (i)
@@ -54,7 +54,7 @@ namespace scene
 
         }
         
-        return std::nullopt; 
+        return -1.0f;
     }
 } 
 

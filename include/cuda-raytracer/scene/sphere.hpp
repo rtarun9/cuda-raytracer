@@ -3,7 +3,6 @@
 #include "math/float3.hpp"
 #include "math/ray.hpp"
 
-#include <optional>
 
 namespace scene
 {
@@ -14,8 +13,12 @@ namespace scene
         float radius{1.0f};
         size_t mat_index{};
 
-        // Returns the ray parameter 't' if the ray hits the sphere and the value of t lies in the range
-        // min_t and max_t. 
-        __device__ const std::optional<float> hit_by_ray(const math::ray_t &ray, const float min_t, const float max_t) const;
+        sphere_t(const math::float3 &center, float radius, size_t mat_index)
+            : center(center), radius(radius), mat_index(mat_index)
+        {
+        }
+
+        // A return value of -1.0f implies ray did not hit anything.
+        __device__ float hit_by_ray(const math::ray_t &ray, const float min_t, const float max_t) const;
     };
 }

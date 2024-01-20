@@ -6,7 +6,6 @@
 #include "hit_details.hpp"
 
 #include <climits>
-#include <optional>
 
 namespace scene
 {
@@ -14,6 +13,22 @@ namespace scene
     {
         spheres = (sphere_t**)malloc(sizeof(sphere_t*) * max_sphere_count);
         materials = (material::material_t**)malloc(sizeof(material::material_t*) * max_material_count);
+    }
+
+    scene_t::~scene_t()
+    {
+        for (int i = 0; i < num_materials; i++)
+        {
+            free(materials[i]);
+        }
+        free(materials);
+
+        for (int i = 0; i < num_spheres; i++)
+        {
+            free(spheres[i]);
+        }
+
+        free(spheres);
     }
 
     void scene_t::add_sphere(sphere_t& sphere)
@@ -24,7 +39,7 @@ namespace scene
             return;
         }
 
-        spheres[num_spheres++] = &(sphere);
+        spheres[num_spheres++] = new sphere_t(sphere) ;
     }
         
     uint32_t scene_t::add_material(material::material_t* mat)
@@ -32,13 +47,14 @@ namespace scene
         if (num_materials == max_material_count)
         {
             std::cout << "Not adding material to scene due to exceeding max material count.\n";
-            return 0xFFFF'FFFF'FFFF'FFFF;
+            return 0; 
         }
 
         materials[num_materials++] = (mat);
+        return num_materials - 1;
     }
 
-    std::optional<hit_details_t> scene_t::ray_hit(const math::ray_t& ray) const
+    __device__ hit_details_t scene_t::ray_hit(const math::ray_t& ray) const
     {
         // The value of t is slightly greater than 0 because of shadow acne.
         // There are situations where due to floating point precision problems, we may have 
@@ -47,7 +63,7 @@ namespace scene
         // causing continous intersections results in false - shadowing.
         // By setting min_t to be greater than 0, this problem can be resolved.
         float min_t = 0.01f;
-        float max_t = std::numeric_limits<float>::infinity();
+        float max_t = 3.40282347e+38F;
 
         hit_details_t ray_hit_details{};
         bool ray_hit_object_in_scene = false;
@@ -56,11 +72,11 @@ namespace scene
         {
             const sphere_t* sphere = spheres[i];
             const auto t = sphere->hit_by_ray(ray, min_t, max_t);
-            if (t.has_value())
+            if (t != -1.0f)
             {
                 // Fill hit_details struct.
-                ray_hit_details.ray_param_t = *t;
-                ray_hit_details.point_of_intersection = ray.at(*t);
+                ray_hit_details.ray_param_t = t;
+                ray_hit_details.point_of_intersection = ray.at(t);
 
                 math::float3 normal = (ray_hit_details.point_of_intersection - sphere->center) / sphere->radius;
 
@@ -81,7 +97,7 @@ namespace scene
 
                 ray_hit_details.material_index =sphere->mat_index; 
 
-                max_t = *t;
+                max_t = t;
 
                 ray_hit_object_in_scene = true;
             }
@@ -89,7 +105,7 @@ namespace scene
 
         if (!ray_hit_object_in_scene)
         {
-            return std::nullopt;
+            ray_hit_details.ray_param_t = -1.0f;
         } 
 
         return ray_hit_details;

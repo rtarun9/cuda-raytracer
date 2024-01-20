@@ -13,7 +13,7 @@ class renderer_t
 {
 public:
     // Returns framebuffer (i.e the output of cuda kernel).
-    int* render_scene(const scene::scene_t &scene, image_t &image) const;
+    __host__ u8* render_scene(const scene::scene_t &scene, image_t &image) const;
 
 public:
     // The vertical fov is used to determine viewport height.

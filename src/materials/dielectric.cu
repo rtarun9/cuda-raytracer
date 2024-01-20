@@ -2,10 +2,11 @@
 
 #include "hit_details.hpp"
 #include "utils.hpp"
+#include "random_num_gen.hpp"
 
 namespace material
 {
-    std::optional<math::ray_t> dielectric::scatter_ray(const math::ray_t& ray, const hit_details_t &hit_details) const
+    __device__ maybe_ray dielectric::scatter_ray(const math::ray_t& ray, const hit_details_t &hit_details) const
     {
         // The image being used for this derivation can be found in slide 13 of this ppt : 
         // https://web.cse.ohio-state.edu/~shen.94/681/Site/Slides_files/reflection_refraction.pdf.
@@ -33,8 +34,8 @@ namespace material
         const auto& N = hit_details.normal;
         const auto& V = -ray.direction.normalize();
 
-        const auto cos_theta_i = std::min(math::float3::dot(V, N), 1.0f);
-        const auto sin_theta_i = std::sqrt(1 - cos_theta_i * cos_theta_i);
+        const auto cos_theta_i = min(math::float3::dot(V, N), 1.0f);
+        const auto sin_theta_i = sqrt(1 - cos_theta_i * cos_theta_i);
 
         // Before proceeding, note that the formula for computation of T requires a sqrt(1 - (sin(theta_i) * e) ^ 2).
         // The terms inside the sqrt cannot be negative. We can use this condition to determine when ray should refract (i.e when the sqrt computation is possible)
@@ -53,14 +54,14 @@ namespace material
         };
 
         // Perform reflection if either refraction is not possible, or if reflectance is above a random value.
-        if (refraction_ratio * sin_theta_i > 1.0f || schlick_approximation(cos_theta_i, refraction_ratio) > utils::get_random_float_in_range_0_1())
+        if (refraction_ratio * sin_theta_i > 1.0f || schlick_approximation(cos_theta_i, refraction_ratio) > get_random_float_in_range_0_1())
         {
-           return math::ray_t(hit_details.point_of_intersection, (ray.direction - N * 2.0f * math::float3::dot(N, ray.direction)).normalize());
+           return maybe_ray{hit_details.point_of_intersection, (ray.direction - N * 2.0f * math::float3::dot(N, ray.direction)).normalize()};
         }
 
         // Refract the ray if refraction is possible. 
         const auto T = (N * cos_theta_i  - V) * refraction_ratio - N * std::sqrt(1.0f - sin_theta_i * sin_theta_i * refraction_ratio * refraction_ratio); 
 
-        return math::ray_t(hit_details.point_of_intersection, T.normalize());   
+        return maybe_ray(hit_details.point_of_intersection, T.normalize());   
     }
 }

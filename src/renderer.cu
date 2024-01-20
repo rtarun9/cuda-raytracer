@@ -2,11 +2,126 @@
 
 #include "utils.hpp"
 
-#include <ranges>
+#include "random_num_gen.hpp"
 #include <algorithm>
-#include <functional>
+#include <cuda_runtime.h>
+#include <vector_types.h>
 
-int* renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
+__device__ math::float3 clamp_color_to_range_0_1(math::float3 color)
+{
+    math::float3 result = color;
+    if (result.x >= 1.0f)
+        result.x = 1.0f;
+
+    if (result.y >= 1.0f)
+        result.y = 1.0f;
+
+    if (result.z >= 1.0f)
+        result.z = 1.0f;
+
+    return result;
+}
+
+__device__ math::float3 get_background_color(const float ray_dir_y)
+{
+    const math::float3 white_color = math::float3(1.0f, 1.0f, 1.0f);
+    const math::float3 sky_blue_color = math::float3(0.5f, 0.7f, 1.0f);
+
+    return math::float3::lerp(white_color, sky_blue_color, (ray_dir_y + 1.0f) * 0.5f);
+};
+
+__global__ void raytracing_kernel(int sample_count, const math::float3 camera_center,
+                                  const math::float3 upper_left_pixel_position, const math::float3 pixel_delta_u,
+                                  const math::float3 pixel_delta_v, const math::float3 defocus_u,
+                                  const math::float3 defocus_v, const scene::scene_t *scene, int image_width,
+                                  int image_height, unsigned char*const frame_buffer)
+{
+    const int col = threadIdx.x + blockIdx.x * blockDim.x;
+    const int row = threadIdx.y + blockIdx.y * blockDim.y;
+
+    if (row >= image_height || col >= image_width)
+    {
+        return;
+    }
+
+    // Using u, v to find the world space coordinate of viewport pixel.
+    // pixel_delta_v and u after multiplication with col and row are of range : [0, viewport_v], [0, viewport_u]
+
+    math::float3 color{0.0f, 0.0f, 0.0f};
+
+
+    for (int k = 0; k < 1; k++)
+    {
+        const math::float3 pixel_center =
+            upper_left_pixel_position + pixel_delta_v * (float)(row) + pixel_delta_u * (float)(col);
+
+        // Idea behind the math:
+        // -0.5f + rand(0, 1) will be of range -0.5f, 0.5f.
+        // pixel_delta is the distance between two pixels. When you multiply that by a factor in range 0.5f,
+        // -0.5f, you get a position within the pixel 'grid'.
+        const math::float3 pixel_sample = pixel_center + pixel_delta_u * get_random_float_in_range(-0.5f, 0.5f) +
+                                          pixel_delta_v * get_random_float_in_range(-0.5f, 0.5f);
+
+        // Compute defocus ray.
+        const auto random_point_in_disc = get_random_float3_in_disk();
+        const auto ray_origin = camera_center + defocus_u * random_point_in_disc.x + defocus_v * random_point_in_disc.y;
+        const auto camera_to_pixel_ray = math::ray_t(ray_origin, (pixel_sample - ray_origin));
+
+        math::ray_t ray = camera_to_pixel_ray;
+        math::float3 per_sample_color = math::float3(1.0f, 1.0f, 1.0f);
+
+
+        // note(rtarun9) : TODO : Reorder and change raytracing function parameters.
+        const int max_depth = 1u;
+        for (int i = 0; i < max_depth; i++)
+        {
+            // If depth >= max_depth and in previous function call the ray did hit a objects, just assume that
+            // the ray is absorbed (i.e not reflected) by the object. This ray will not have any color and just
+            // be black.
+            if (i >= max_depth)
+            {
+                per_sample_color = math::float3(0.0f, 0.0f, 0.0f);
+                break;
+            }
+
+            hit_details_t hit_record = scene->ray_hit(ray);
+
+            if (hit_record.ray_param_t != -1.0f)
+            {
+                maybe_ray scatter_ray = scene->materials[hit_record.material_index]->scatter_ray(ray, hit_record);
+                if (scatter_ray.exists)
+                {
+                    per_sample_color = per_sample_color * scene->materials[hit_record.material_index]->albedo;
+                }
+                else
+                {
+                    // If after contact with object the ray is not scattered, it is absorbed by the object.
+                    per_sample_color = math::float3(0.0f, 0.0f, 0.0f);
+                    break;
+                }
+            }
+            else
+            {
+                color = get_background_color(ray.direction.normalize().y);
+            }
+        };
+        color += per_sample_color;
+    };
+
+    const auto inverse_sample_count = 1.0f / sample_count; 
+    color = color * inverse_sample_count;
+    color = clamp_color_to_range_0_1(color);
+
+    // Gamma correction.
+    // color = math::float3(sqrt(color.x), sqrt(color.y), sqrt(color.z));
+
+    // Get flattend index of current pixel's contribution to framebuffer.
+    int index =  col + row * image_width;
+    
+    frame_buffer[index] = color.y;
+}
+
+__host__ u8* renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
 {
     // Viewport setup.
     // The viewport is a rectangular region / grid in the 3D world that contains the image pixel grid.
@@ -43,90 +158,37 @@ int* renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
     // The image coordinates (row, col) are in image space, where origin is top left.
     // But the rays the camera shoots to the scene must be in world space.
     // The camera_center and viewport vectors will help in this coordinate system conversion.
-    // The pixel grid is inset from the viewport edges by half pixel to pixel distance. This means the pixel locations are the actual
-    // locations of the pixel (i.e the center) and not the upper left corner of the square representing the pixel.
-    // See https://raytracing.github.io/images/fig-1.04-pixel-grid.jpg for more details. This also makes the viewport pixel grid
-    // evenly divided into w x h identical regions.s
+    // The pixel grid is inset from the viewport edges by half pixel to pixel distance. This means the pixel locations
+    // are the actual locations of the pixel (i.e the center) and not the upper left corner of the square representing
+    // the pixel. See https://raytracing.github.io/images/fig-1.04-pixel-grid.jpg for more details. This also makes the
+    // viewport pixel grid evenly divided into w x h identical regions.s
 
     // Pixel delta : horizontal and vertical vectors between pixel location's.
     const auto pixel_delta_u = viewport_u / static_cast<float>(image.width);
     const auto pixel_delta_v = viewport_v / static_cast<float>(image.height);
 
-    // Note that camera center (a point) + camera_front * focus_distance (a vector) equals a point. (i.e the displacement of point by a vector yields a point).
-    const auto viewport_upper_left = viewport_u * -0.5f + viewport_v * -0.5f + (camera_front * focus_distance + camera_center);
+    // Note that camera center (a point) + camera_front * focus_distance (a vector) equals a point. (i.e the
+    // displacement of point by a vector yields a point).
+    const auto viewport_upper_left =
+        viewport_u * -0.5f + viewport_v * -0.5f + (camera_front * focus_distance + camera_center);
     const auto upper_left_pixel_position = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5f;
 
     // Prepare buffers for cuda kernel.
-    int* host_frame_buffer = (int*)malloc(sizeof(int) * image.width * image.height);
-    int* dev_frame_buffer = nullptr;
-    utils::cuda_check(cudaMalloc(&dev_frame_buffer, (size_t)(sizeof(int) * image.width * image.height)));
+    unsigned char*host_frame_buffer = (unsigned char*)malloc(sizeof(u8) * image.width * image.height);
+  unsigned char*dev_frame_buffer = nullptr;
+    utils::cuda_check(cudaMalloc(&dev_frame_buffer, (size_t)(sizeof(u8) * image.width * image.height)));
 
     // Prepare kernel execution launch parameters.
-    const dim3 threads_per_block = dim3(16, 16, 1); 
-    const dim3 blocks_per_grid = dim3((image.height + threads_per_block.x - 1) / threads_per_block.x, (image.width + threads_per_block.y - 1) / threads_per_block.y, 1u);
+    const dim3 threads_per_block = dim3(16, 16, 1);
+    const dim3 blocks_per_grid = dim3((image.width+ threads_per_block.x - 1) / threads_per_block.x,
+                                      (image.height+ threads_per_block.y - 1) / threads_per_block.y, 1u);
 
-    for (const auto row : std::views::iota(0u, image.height))
-    {
-        std::cout << "Progress : " << 100.0f * static_cast<float>(row) / image.height << "%\r";
-        for (const auto col : std::views::iota(0u, image.width))
-        {
-            // Using u, v to find the world space coordinate of viewport pixel.
-            // pixel_delta_v and u after multiplication with col and row are of range : [0, viewport_v], [0, viewport_u]
+    raytracing_kernel<<<blocks_per_grid, threads_per_block>>>(sample_count, camera_center, upper_left_pixel_position,
+                                                              pixel_delta_u, pixel_delta_v, defocus_u, defocus_v,
+                                                              &scene, image.width, image.height, dev_frame_buffer);
 
-            math::float3 color{0.0f, 0.0f, 0.0f};
+    // Copy dev_frame_buffer into host frame_buffer.
+    utils::cuda_check(cudaMemcpy(host_frame_buffer, dev_frame_buffer, sizeof(u8) * image.width * image.height, cudaMemcpyDeviceToHost));
 
-            for (const auto k : std::views::iota(0u, sample_count))
-            {
-                const math::float3 pixel_center = upper_left_pixel_position + pixel_delta_v * static_cast<float>(row) + pixel_delta_u * static_cast<float>(col);
-
-                // Idea behind the math:
-                // -0.5f + rand(0, 1) will be of range -0.5f, 0.5f.
-                // pixel_delta is the distance between two pixels. When you multiply that by a factor in range 0.5f, -0.5f, you get a position within the pixel 'grid'.
-                const math::float3 pixel_sample = pixel_center + pixel_delta_u * utils::get_random_float_in_range(-0.5f, 0.5f) + pixel_delta_v * utils::get_random_float_in_range(-0.5f, 0.5f);
-
-                // Compute defocus ray.
-                const auto random_point_in_disc = utils::get_random_float3_in_disk();
-                const auto ray_origin = camera_center + defocus_u * random_point_in_disc.x + defocus_v * random_point_in_disc.y;
-                const auto camera_to_pixel_ray = math::ray_t(ray_origin, (pixel_sample - ray_origin));
-
-                const auto get_background_color = [&](const float ray_dir_y) -> math::float3
-                {
-                    constexpr auto white_color = math::float3(1.0f, 1.0f, 1.0f);
-                    constexpr auto sky_blue_color = math::float3(0.5f, 0.7f, 1.0f);
-
-                    return math::float3::lerp(white_color, sky_blue_color, (ray_dir_y + 1.0f) * 0.5f);
-                };
-
-                const std::function<math::float3(math::ray_t, u32)> get_color = [&](const math::ray_t ray, const u32 depth) -> math::float3
-                {
-                    // If depth >= max_depth and in previous function call the ray did hit a objects, just assume that 
-                    // the ray is absorbed (i.e not reflected) by the object. This ray will not have any color and just be black.
-                    if (depth >= max_depth)
-                    {
-                        return math::float3(0.0f, 0.0f, 0.0f);
-                    }
-
-                    if (const auto hit_record = scene.ray_hit(ray); hit_record.has_value())
-                    {
-                        auto direction = scene.materials[hit_record->material_index]->scatter_ray(ray, *hit_record);
-                        if (direction.has_value())
-                        {
-                            return get_color(*direction, depth + 1) * scene.materials[hit_record->material_index]->albedo;
-                        }
-
-                        // If after contact with object the ray is not scattered, it is absorbed by the object.
-                        return math::float3(0.0f, 0.0f, 0.0f);
-                    }
-
-                    return get_background_color(ray.direction.normalize().y);
-                };
-
-                color += get_color(camera_to_pixel_ray, 0);
-            };
-
-            const auto inverse_sample_count = 1.0f / sample_count;
-            color = math::float3(std::clamp(color.x * inverse_sample_count, 0.0f, 1.0f), std::clamp(color.y * inverse_sample_count, 0.0f, 1.0f), std::clamp(color.z * inverse_sample_count, 0.0f, 1.0f));
-            image.add_normalized_float3_to_buffer(color);
-        }
-    }
+    return host_frame_buffer;
 }

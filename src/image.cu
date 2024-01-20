@@ -4,7 +4,7 @@
 
 #include <filesystem>
 
-void image_t::write_to_file(int* const frame_buffer, const std::string_view output_file_path)
+void image_t::write_to_file(u8* const frame_buffer, const std::string_view output_file_path)
 {
     const auto write_png = [&](const std::string_view file_path)
     {

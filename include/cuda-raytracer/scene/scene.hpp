@@ -1,8 +1,5 @@
 #pragma once
 
-#include <vector>
-#include <optional>
-
 #include "sphere.hpp"
 #include "math/ray.hpp"
 #include "hit_details.hpp"
@@ -15,14 +12,18 @@ namespace scene
     class scene_t
     {
     public:
-        __host__ __device__ scene_t();
+        __host__  scene_t();
+      __host__ ~scene_t();
 
-        uint32_t get_current_mat_index() { return num_materials - 1u;}
+        __host__ uint32_t get_current_mat_index() { return num_materials - 1u;}
 
-        void add_sphere(sphere_t &sphere);
-        uint32_t add_material(material::material_t* mat);
+        __host__ void add_sphere(sphere_t &sphere);
+       
+        // Adds material and returns current mat index.
+        // Memory is handled by the scene object.
+        __host__ uint32_t add_material(material::material_t* mat);
 
-        __device__ std::optional<hit_details_t> ray_hit(const math::ray_t &ray) const;
+        __device__ hit_details_t ray_hit(const math::ray_t &ray) const;
 
     public:
         uint32_t max_sphere_count{30u};

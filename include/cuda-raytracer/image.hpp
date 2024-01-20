@@ -3,8 +3,6 @@
 #include "types.hpp"
 #include "math/float3.hpp"
 
-#include <vector>
-#include <string>
 #include <string_view>
 
 // A simple image abstraction that provides method to create file / write to a output image file (currently, only png files are supported).
@@ -15,10 +13,10 @@ public:
     constexpr image_t(const u32 width, const u32 height) : width(width), height(height) {}
 
     // Note : the output extension must be .png.
-    void write_to_file(int* const frame_buffer, const std::string_view output_file_path);
+    void write_to_file(u8* const frame_buffer, const std::string_view output_file_path);
 
 private:
-    static constexpr u32 num_channels = 3;
+    static constexpr u32 num_channels = 1;
 
 public:
     u32 width{};
