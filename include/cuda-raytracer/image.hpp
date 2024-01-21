@@ -16,7 +16,7 @@ public:
     void write_to_file(u8* const frame_buffer, const std::string_view output_file_path);
 
 private:
-    static constexpr u32 num_channels = 1;
+    static constexpr u32 num_channels = 3;
 
 public:
     u32 width{};

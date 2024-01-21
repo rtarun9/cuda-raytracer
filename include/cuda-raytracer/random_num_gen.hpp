@@ -1,5 +1,7 @@
 #pragma once
 
+// note(rtarun9) : TODO : This entire file will have to be modified to utilize curand instead of rejection-based random
+// float3 computations. This is because thread divergence would kill all performance gains that cuda gives.
 #include <curand.h>
 #include <curand_kernel.h>
 

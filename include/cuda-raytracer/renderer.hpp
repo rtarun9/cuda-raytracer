@@ -12,7 +12,7 @@
 class renderer_t
 {
 public:
-    // Returns framebuffer (i.e the output of cuda kernel).
+    // Returns framebuffer (i.e the output of cuda kernel) in host-visible memory.
     __host__ u8* render_scene(const scene::scene_t &scene, image_t &image) const;
 
 public:

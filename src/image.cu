@@ -30,6 +30,7 @@ void image_t::write_to_file(u8* const frame_buffer, const std::string_view outpu
     }
     else
     {
+        std::cout << "Writing to png..." << std::endl;
         write_png(output_file_path);
     }
 }

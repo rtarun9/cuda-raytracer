@@ -10,14 +10,15 @@
 __device__ math::float3 clamp_color_to_range_0_1(math::float3 color)
 {
     math::float3 result = color;
-    if (result.x >= 1.0f)
-        result.x = 1.0f;
 
-    if (result.y >= 1.0f)
-        result.y = 1.0f;
+    if (result.x >= 1.0f) result.x = 1.0f;
+    if (result.x <= 0.0f) result.x = 0.0f;
 
-    if (result.z >= 1.0f)
-        result.z = 1.0f;
+    if (result.y >= 1.0f) result.y = 1.0f;
+    if (result.y <= 0.0f) result.y = 0.0f;
+
+    if (result.z >= 1.0f) result.z = 1.0f;
+    if (result.z <= 0.0f) result.z = 0.0f;
 
     return result;
 }
@@ -30,7 +31,7 @@ __device__ math::float3 get_background_color(const float ray_dir_y)
     return math::float3::lerp(white_color, sky_blue_color, (ray_dir_y + 1.0f) * 0.5f);
 };
 
-__global__ void raytracing_kernel(int sample_count, const math::float3 camera_center,
+__global__ void raytracing_kernel(int sample_count, int max_depth, const math::float3 camera_center,
                                   const math::float3 upper_left_pixel_position, const math::float3 pixel_delta_u,
                                   const math::float3 pixel_delta_v, const math::float3 defocus_u,
                                   const math::float3 defocus_v, const scene::scene_t *scene, int image_width,
@@ -44,13 +45,9 @@ __global__ void raytracing_kernel(int sample_count, const math::float3 camera_ce
         return;
     }
 
-    // Using u, v to find the world space coordinate of viewport pixel.
-    // pixel_delta_v and u after multiplication with col and row are of range : [0, viewport_v], [0, viewport_u]
-
     math::float3 color{0.0f, 0.0f, 0.0f};
 
-
-    for (int k = 0; k < 1; k++)
+   for (int k = 0; k < sample_count; k++)
     {
         const math::float3 pixel_center =
             upper_left_pixel_position + pixel_delta_v * (float)(row) + pixel_delta_u * (float)(col);
@@ -63,27 +60,17 @@ __global__ void raytracing_kernel(int sample_count, const math::float3 camera_ce
                                           pixel_delta_v * get_random_float_in_range(-0.5f, 0.5f);
 
         // Compute defocus ray.
-        const auto random_point_in_disc = get_random_float3_in_disk();
+        const auto random_point_in_disc =math::float3(0.0f, 0.0f, 0.0f); //get_random_float3_in_disk();
         const auto ray_origin = camera_center + defocus_u * random_point_in_disc.x + defocus_v * random_point_in_disc.y;
         const auto camera_to_pixel_ray = math::ray_t(ray_origin, (pixel_sample - ray_origin));
 
         math::ray_t ray = camera_to_pixel_ray;
-        math::float3 per_sample_color = math::float3(1.0f, 1.0f, 1.0f);
+        math::float3 per_sample_color = math::float3(0.0f, 0.0f, 0.0f);
 
-
-        // note(rtarun9) : TODO : Reorder and change raytracing function parameters.
-        const int max_depth = 1u;
-        for (int i = 0; i < max_depth; i++)
+        bool ray_absorbed = false;
+        
+        for (int i = 0; i < 1; i++)
         {
-            // If depth >= max_depth and in previous function call the ray did hit a objects, just assume that
-            // the ray is absorbed (i.e not reflected) by the object. This ray will not have any color and just
-            // be black.
-            if (i >= max_depth)
-            {
-                per_sample_color = math::float3(0.0f, 0.0f, 0.0f);
-                break;
-            }
-
             hit_details_t hit_record = scene->ray_hit(ray);
 
             if (hit_record.ray_param_t != -1.0f)
@@ -91,20 +78,30 @@ __global__ void raytracing_kernel(int sample_count, const math::float3 camera_ce
                 maybe_ray scatter_ray = scene->materials[hit_record.material_index]->scatter_ray(ray, hit_record);
                 if (scatter_ray.exists)
                 {
-                    per_sample_color = per_sample_color * scene->materials[hit_record.material_index]->albedo;
+
+                    per_sample_color = scene->materials[hit_record.material_index]->albedo;
+                    per_sample_color = math::float3(1.0f, 0.0f, 0.0f);
+                    ray = scatter_ray.ray;
+                    ray_absorbed = false;
                 }
                 else
                 {
                     // If after contact with object the ray is not scattered, it is absorbed by the object.
                     per_sample_color = math::float3(0.0f, 0.0f, 0.0f);
+                    ray_absorbed = true;
                     break;
                 }
+
             }
             else
             {
-                color = get_background_color(ray.direction.normalize().y);
+            per_sample_color =     get_background_color(ray.direction.normalize().y);
+                ray_absorbed = false;
+                break;
             }
         };
+
+
         color += per_sample_color;
     };
 
@@ -113,12 +110,15 @@ __global__ void raytracing_kernel(int sample_count, const math::float3 camera_ce
     color = clamp_color_to_range_0_1(color);
 
     // Gamma correction.
-    // color = math::float3(sqrt(color.x), sqrt(color.y), sqrt(color.z));
+    color = math::float3(sqrt(color.x), sqrt(color.y), sqrt(color.z));
 
     // Get flattend index of current pixel's contribution to framebuffer.
-    int index =  col + row * image_width;
-    
-    frame_buffer[index] = color.y;
+    int index =  3 * col + row * image_width * 3;
+    frame_buffer[index] = color.x * 255;
+    frame_buffer[index + 1] = color.y * 255;
+    frame_buffer[index + 2] = color.z * 255;
+
+    return;
 }
 
 __host__ u8* renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
@@ -174,21 +174,39 @@ __host__ u8* renderer_t::render_scene(const scene::scene_t &scene, image_t &imag
     const auto upper_left_pixel_position = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5f;
 
     // Prepare buffers for cuda kernel.
-    unsigned char*host_frame_buffer = (unsigned char*)malloc(sizeof(u8) * image.width * image.height);
-  unsigned char*dev_frame_buffer = nullptr;
-    utils::cuda_check(cudaMalloc(&dev_frame_buffer, (size_t)(sizeof(u8) * image.width * image.height)));
+    u8* host_frame_buffer = (unsigned char*)malloc(sizeof(u8) * image.width * image.height * 3);
+
+    u8* dev_frame_buffer = nullptr;
+    utils::cuda_check(cudaMalloc(&dev_frame_buffer, (size_t)(sizeof(u8) * image.width * image.height * 3)));
 
     // Prepare kernel execution launch parameters.
     const dim3 threads_per_block = dim3(16, 16, 1);
     const dim3 blocks_per_grid = dim3((image.width+ threads_per_block.x - 1) / threads_per_block.x,
                                       (image.height+ threads_per_block.y - 1) / threads_per_block.y, 1u);
 
-    raytracing_kernel<<<blocks_per_grid, threads_per_block>>>(sample_count, camera_center, upper_left_pixel_position,
+    scene::scene_t* unified_memory_scene{};
+    utils::cuda_check(cudaMallocManaged(&unified_memory_scene, sizeof(scene::scene_t)));
+    utils::cuda_check(cudaMemcpy(unified_memory_scene, scene, sizeof(scene::scene_t), cudaMemcpyHostToDevice)); 
+    unified_memory_scene->spheres = scene.spheres;
+    unified_memory_scene->num_spheres = scene.num_spheres;
+    unified_memory_scene->materials = scene.materials;
+    unified_memory_scene->num_materials = scenee.num_materials;
+
+    raytracing_kernel<<<blocks_per_grid, threads_per_block>>>(sample_count, max_depth, camera_center, upper_left_pixel_position,
                                                               pixel_delta_u, pixel_delta_v, defocus_u, defocus_v,
-                                                              &scene, image.width, image.height, dev_frame_buffer);
+                                                              unified_memory_scene, image.width, image.height, dev_frame_buffer);
+
+    cudaError_t last_error = cudaGetLastError();
+    utils::cuda_check(last_error);
+
+    std::cout << "Kernel execution complete" << std::endl;
 
     // Copy dev_frame_buffer into host frame_buffer.
-    utils::cuda_check(cudaMemcpy(host_frame_buffer, dev_frame_buffer, sizeof(u8) * image.width * image.height, cudaMemcpyDeviceToHost));
+    utils::cuda_check(cudaMemcpy(host_frame_buffer, dev_frame_buffer, 3 * sizeof(u8) * image.width * image.height, cudaMemcpyDeviceToHost));
+
+    std::cout << "Data copied from device memory to host" << std::endl;
+
+    utils::cuda_check(cudaFree(dev_frame_buffer));
 
     return host_frame_buffer;
 }

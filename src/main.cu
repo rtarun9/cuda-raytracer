@@ -13,7 +13,7 @@ int main()
 {
     // Image setup.
     constexpr float aspect_ratio = 16.0f / 9.0f;
-    constexpr u32 image_width = 100;
+    constexpr u32 image_width = 400;
     constexpr u32 image_height = std::max(static_cast<u32>((float)image_width / aspect_ratio), 1u);
 
     image_t image(image_width, image_height);
@@ -22,19 +22,22 @@ int main()
     renderer_t renderer{};
     renderer.max_depth = 1;
     renderer.sample_count = 1;
-    renderer.vertical_fov = 20.0f;
-    renderer.camera_center = math::float3(13.0f, 2.0f, -3.0f);
-    renderer.camera_look_at = math::float3(0.0f, 0.0f, 0.0f);
+    renderer.vertical_fov = 90.0f;
+    renderer.camera_center = math::float3(0.0f, 0.0f, -1.0f);
+    renderer.camera_look_at = math::float3(0.0f, 0.0f, 1.0f);
     renderer.defocus_angle = 0.6f;
-    renderer.focus_distance = 10.0f;
+    renderer.focus_distance = (renderer.camera_look_at - renderer.camera_center).len();
 
     // Setup Scene and Materials.
-    const auto ground_material = material::lambertian_diffuse(math::float3(0.5f, 0.5f, 0.5f));
+ auto ground_material = material::lambertian_diffuse(math::float3(0.5f, 0.5f, 0.0f));
 
     auto world = scene::scene_t();
-    world.add_material(new material::lambertian_diffuse(material::lambertian_diffuse(math::float3(0.5f, 0.5f, 0.5f))));
+    material::lambertian_diffuse* ground_material_ptr = nullptr;
+    utils::cuda_check(cudaMallocManaged(&ground_material_ptr, sizeof(material::lambertian_diffuse)));
+    ground_material_ptr = &ground_material;
+    world.add_material(ground_material_ptr);
 
-    auto sphere = scene::sphere_t(math::float3(0.0f, -1000.0f, 0.0f),1000.0f,  (uint32_t)world.get_current_mat_index());
+    auto sphere = scene::sphere_t(math::float3(0.0f, 1.0f, 1.0f),0.5f,  (uint32_t)world.get_current_mat_index());
     world.add_sphere(sphere);
 
     #if 0
@@ -92,6 +95,8 @@ int main()
 
     // Write rendered image to file.
     image.write_to_file(frame_buffer, "output_image.png");
+
+    free(frame_buffer);
 
     return EXIT_SUCCESS;
 }

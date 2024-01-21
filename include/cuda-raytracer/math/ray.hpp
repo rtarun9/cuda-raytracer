@@ -11,11 +11,11 @@ namespace math
     class ray_t
     {
     public:
-        __host__ __device__ ray_t() : origin(float3{}), direction(float3{}){};
+        __device__ ray_t() : origin(float3{}), direction(float3{}){};
 		
-        __host__ __device__ ray_t(const float3 origin, const float3 direction) : origin(origin), direction(direction){};
+        __device__ ray_t(const float3 origin, const float3 direction) : origin(origin), direction(direction){};
 
-        __host__ __device__ float3 at(const float t) const { return origin + direction * t; }
+        __device__ float3 at(const float t) const { return origin + direction * t; }
 
     public:
         float3 origin{0.0f, 0.0f, 0.0f};

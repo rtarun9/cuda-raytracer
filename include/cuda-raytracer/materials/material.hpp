@@ -20,6 +20,7 @@ struct maybe_ray
     __host__ __device__ maybe_ray(const math::float3 &origin, const math::float3 &direction)
         : ray({origin, direction}), exists(true)
     {
+      exists = true;
     }
 };
 
