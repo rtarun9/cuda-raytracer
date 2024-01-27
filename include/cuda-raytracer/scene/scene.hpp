@@ -22,11 +22,11 @@ class scene_t
         return num_materials - 1u;
     }
 
-    __host__ void add_sphere(sphere_t &sphere);
+    __host__ void add_sphere(const sphere_t &sphere);
 
     // Adds material and returns current mat index.
     // Memory is handled by the scene object.
-    __host__ uint32_t add_material(material::material_t *mat);
+    __host__ uint32_t add_material(const material::material_t &mat);
 
     __device__ hit_details_t ray_hit(const math::ray_t &ray) const;
 
@@ -37,7 +37,7 @@ class scene_t
     sphere_t *spheres{};
     uint32_t num_spheres{};
 
-    material::material_t **materials{};
+    material::material_t *materials{};
     uint32_t num_materials{};
 };
 } // namespace scene

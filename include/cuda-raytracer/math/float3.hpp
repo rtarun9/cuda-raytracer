@@ -117,7 +117,7 @@ class float3
     // Debugging functions.
     __host__ friend std::ostream &operator<<(std::ostream &out, const float3 f)
     {
-        out <<  "(" << f.x << ", " << f.y << ", " << f.z << ")";
+        out << "(" << f.x << ", " << f.y << ", " << f.z << ")";
         return out;
     }
 

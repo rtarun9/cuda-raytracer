@@ -4,12 +4,13 @@
 
 #include <filesystem>
 
-void image_t::write_to_file(u8* const frame_buffer, const std::string_view output_file_path)
+void image_t::write_to_file(u8 *const frame_buffer, const std::string_view output_file_path)
 {
-    const auto write_png = [&](const std::string_view file_path)
-    {
+    const auto write_png = [&](const std::string_view file_path) {
         // Writing to file using stb.
-        if (const int i = stbi_write_png(file_path.data(), width, height, num_channels, frame_buffer, width * num_channels); i)
+        if (const int i =
+                stbi_write_png(file_path.data(), width, height, num_channels, frame_buffer, width * num_channels);
+            i)
         {
             std::cout << "Succesfully wrote to file : " << output_file_path;
         }

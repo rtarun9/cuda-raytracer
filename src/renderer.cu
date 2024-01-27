@@ -11,14 +11,20 @@ __device__ math::float3 clamp_color_to_range_0_1(math::float3 color)
 {
     math::float3 result = color;
 
-    if (result.x >= 1.0f) result.x = 1.0f;
-    if (result.x <= 0.0f) result.x = 0.0f;
+    if (result.x >= 1.0f)
+        result.x = 1.0f;
+    if (result.x <= 0.0f)
+        result.x = 0.0f;
 
-    if (result.y >= 1.0f) result.y = 1.0f;
-    if (result.y <= 0.0f) result.y = 0.0f;
+    if (result.y >= 1.0f)
+        result.y = 1.0f;
+    if (result.y <= 0.0f)
+        result.y = 0.0f;
 
-    if (result.z >= 1.0f) result.z = 1.0f;
-    if (result.z <= 0.0f) result.z = 0.0f;
+    if (result.z >= 1.0f)
+        result.z = 1.0f;
+    if (result.z <= 0.0f)
+        result.z = 0.0f;
 
     return result;
 }
@@ -35,8 +41,9 @@ __global__ void raytracing_kernel(int sample_count, int max_depth, const math::f
                                   const math::float3 upper_left_pixel_position, const math::float3 pixel_delta_u,
                                   const math::float3 pixel_delta_v, const math::float3 defocus_u,
                                   const math::float3 defocus_v, const scene::scene_t *scene, int image_width,
-                                  int image_height, unsigned char*const frame_buffer)
+                                  int image_height, unsigned char *const frame_buffer)
 {
+
     const int col = threadIdx.x + blockIdx.x * blockDim.x;
     const int row = threadIdx.y + blockIdx.y * blockDim.y;
 
@@ -47,7 +54,7 @@ __global__ void raytracing_kernel(int sample_count, int max_depth, const math::f
 
     math::float3 color{0.0f, 0.0f, 0.0f};
 
-   for (int k = 0; k < sample_count; k++)
+    for (int k = 0; k < sample_count; k++)
     {
         const math::float3 pixel_center =
             upper_left_pixel_position + pixel_delta_v * (float)(row) + pixel_delta_u * (float)(col);
@@ -60,27 +67,27 @@ __global__ void raytracing_kernel(int sample_count, int max_depth, const math::f
                                           pixel_delta_v * get_random_float_in_range(-0.5f, 0.5f);
 
         // Compute defocus ray.
-        const auto random_point_in_disc =math::float3(0.0f, 0.0f, 0.0f); //get_random_float3_in_disk();
+        const auto random_point_in_disc = get_random_float3_in_disk();
         const auto ray_origin = camera_center + defocus_u * random_point_in_disc.x + defocus_v * random_point_in_disc.y;
         const auto camera_to_pixel_ray = math::ray_t(ray_origin, (pixel_sample - ray_origin));
 
         math::ray_t ray = camera_to_pixel_ray;
-        math::float3 per_sample_color = math::float3(0.0f, 0.0f, 0.0f);
-
+        math::float3 per_sample_color = math::float3(1.0f, 1.0f, 1.0f);
         bool ray_absorbed = false;
-        
-        for (int i = 0; i < 1; i++)
+
+        int i = 0;
+        for (; i < max_depth; i++)
         {
             hit_details_t hit_record = scene->ray_hit(ray);
 
             if (hit_record.ray_param_t != -1.0f)
             {
-                maybe_ray scatter_ray = scene->materials[hit_record.material_index]->scatter_ray(ray, hit_record);
+                math::float3 albedo = scene->materials[hit_record.material_index].albedo;
+                maybe_ray scatter_ray = scene->materials[hit_record.material_index].scatter_ray(ray, hit_record);
+
                 if (scatter_ray.exists)
                 {
-
-                    per_sample_color = scene->materials[hit_record.material_index]->albedo;
-                    per_sample_color = math::float3(1.0f, 0.0f, 0.0f);
+                    per_sample_color = albedo * per_sample_color;
                     ray = scatter_ray.ray;
                     ray_absorbed = false;
                 }
@@ -91,21 +98,24 @@ __global__ void raytracing_kernel(int sample_count, int max_depth, const math::f
                     ray_absorbed = true;
                     break;
                 }
-
             }
             else
             {
-            per_sample_color =     get_background_color(ray.direction.normalize().y);
+                per_sample_color = per_sample_color * get_background_color(ray.direction.normalize().y);
                 ray_absorbed = false;
                 break;
             }
         };
 
+        if (ray_absorbed || i == max_depth)
+        {
+            per_sample_color = math::float3(0.0f, 0.0f, 0.0f);
+        }
 
         color += per_sample_color;
     };
 
-    const auto inverse_sample_count = 1.0f / sample_count; 
+    const auto inverse_sample_count = 1.0f / sample_count;
     color = color * inverse_sample_count;
     color = clamp_color_to_range_0_1(color);
 
@@ -113,7 +123,7 @@ __global__ void raytracing_kernel(int sample_count, int max_depth, const math::f
     color = math::float3(sqrt(color.x), sqrt(color.y), sqrt(color.z));
 
     // Get flattend index of current pixel's contribution to framebuffer.
-    int index =  3 * col + row * image_width * 3;
+    int index = 3 * col + row * image_width * 3;
     frame_buffer[index] = color.x * 255;
     frame_buffer[index + 1] = color.y * 255;
     frame_buffer[index + 2] = color.z * 255;
@@ -121,7 +131,7 @@ __global__ void raytracing_kernel(int sample_count, int max_depth, const math::f
     return;
 }
 
-__host__ u8* renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
+__host__ u8 *renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
 {
     // Viewport setup.
     // The viewport is a rectangular region / grid in the 3D world that contains the image pixel grid.
@@ -174,27 +184,24 @@ __host__ u8* renderer_t::render_scene(const scene::scene_t &scene, image_t &imag
     const auto upper_left_pixel_position = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5f;
 
     // Prepare buffers for cuda kernel.
-    u8* host_frame_buffer = (unsigned char*)malloc(sizeof(u8) * image.width * image.height * 3);
+    u8 *host_frame_buffer = (unsigned char *)malloc(sizeof(u8) * image.width * image.height * 3);
 
-    u8* dev_frame_buffer = nullptr;
+    u8 *dev_frame_buffer = nullptr;
     utils::cuda_check(cudaMalloc(&dev_frame_buffer, (size_t)(sizeof(u8) * image.width * image.height * 3)));
 
     // Prepare kernel execution launch parameters.
     const dim3 threads_per_block = dim3(16, 16, 1);
-    const dim3 blocks_per_grid = dim3((image.width+ threads_per_block.x - 1) / threads_per_block.x,
-                                      (image.height+ threads_per_block.y - 1) / threads_per_block.y, 1u);
+    const dim3 blocks_per_grid = dim3((image.width + threads_per_block.x - 1) / threads_per_block.x,
+                                      (image.height + threads_per_block.y - 1) / threads_per_block.y, 1u);
 
-    scene::scene_t* unified_memory_scene{};
-    utils::cuda_check(cudaMallocManaged(&unified_memory_scene, sizeof(scene::scene_t)));
-    utils::cuda_check(cudaMemcpy(unified_memory_scene, scene, sizeof(scene::scene_t), cudaMemcpyHostToDevice)); 
-    unified_memory_scene->spheres = scene.spheres;
-    unified_memory_scene->num_spheres = scene.num_spheres;
-    unified_memory_scene->materials = scene.materials;
-    unified_memory_scene->num_materials = scenee.num_materials;
+    scene::scene_t *dev_scene_ptr = nullptr;
+    utils::cuda_check(cudaMalloc(&dev_scene_ptr, sizeof(scene::scene_t)));
+    utils::cuda_check(
+        cudaMemcpy(dev_scene_ptr, &scene, sizeof(scene::scene_t), cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-    raytracing_kernel<<<blocks_per_grid, threads_per_block>>>(sample_count, max_depth, camera_center, upper_left_pixel_position,
-                                                              pixel_delta_u, pixel_delta_v, defocus_u, defocus_v,
-                                                              unified_memory_scene, image.width, image.height, dev_frame_buffer);
+    raytracing_kernel<<<blocks_per_grid, threads_per_block>>>(
+        sample_count, max_depth, camera_center, upper_left_pixel_position, pixel_delta_u, pixel_delta_v, defocus_u,
+        defocus_v, dev_scene_ptr, image.width, image.height, dev_frame_buffer);
 
     cudaError_t last_error = cudaGetLastError();
     utils::cuda_check(last_error);
@@ -202,11 +209,13 @@ __host__ u8* renderer_t::render_scene(const scene::scene_t &scene, image_t &imag
     std::cout << "Kernel execution complete" << std::endl;
 
     // Copy dev_frame_buffer into host frame_buffer.
-    utils::cuda_check(cudaMemcpy(host_frame_buffer, dev_frame_buffer, 3 * sizeof(u8) * image.width * image.height, cudaMemcpyDeviceToHost));
+    utils::cuda_check(cudaMemcpy(host_frame_buffer, dev_frame_buffer, 3 * sizeof(u8) * image.width * image.height,
+                                 cudaMemcpyDeviceToHost));
 
     std::cout << "Data copied from device memory to host" << std::endl;
 
     utils::cuda_check(cudaFree(dev_frame_buffer));
+    utils::cuda_check(cudaFree(dev_scene_ptr));
 
     return host_frame_buffer;
 }

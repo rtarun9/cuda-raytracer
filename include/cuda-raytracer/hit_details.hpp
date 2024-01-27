@@ -1,11 +1,7 @@
 #pragma once
 
+#include "materials/material.hpp"
 #include "math/float3.hpp"
-
-namespace material
-{
-    class material_t;
-};
 
 // After a ray hits a object, the details at the point of intersection are stored in this struct.
 struct hit_details_t
@@ -18,5 +14,5 @@ struct hit_details_t
     bool back_face{false};
 
     size_t material_index{};
+    material_type_t mat_type{};
 };
-
