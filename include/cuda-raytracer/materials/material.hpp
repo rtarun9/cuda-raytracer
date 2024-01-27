@@ -73,6 +73,7 @@ class material_t
     __device__ maybe_ray scatter_ray(const math::ray_t &ray, const hit_details_t &hit_details) const;
 
   public:
+    // Common variables for all material types.
     math::float3 albedo{};
 
     // Variables for dielectric materials.

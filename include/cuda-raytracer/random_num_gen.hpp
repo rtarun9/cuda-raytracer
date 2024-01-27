@@ -5,7 +5,7 @@
 
 #include <random>
 
-#include "utils.hpp"
+static constexpr float pi = 3.1415926535897932385f;
 
 __host__ __device__ static inline float get_random_float_in_range_0_1()
 {
@@ -49,7 +49,7 @@ __host__ __device__ static math::float3 get_random_float3_in_sphere()
     float u = get_random_float_in_range_0_1();
     float v = get_random_float_in_range_0_1();
 
-    float theta = u * 2.0f * utils::pi;
+    float theta = u * 2.0f * pi;
     float phi = acos(2.0f * v - 1.0f);
 
     float r = pow(get_random_float_in_range_0_1(), 1 / 3);

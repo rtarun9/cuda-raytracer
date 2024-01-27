@@ -6,8 +6,6 @@
 #include "scene/scene.hpp"
 #include "types.hpp"
 
-#include <chrono>
-
 int main()
 {
     // Image setup.
@@ -85,12 +83,7 @@ int main()
     world.add_sphere(sphere4);
 
     // Begin render loop.
-    const auto render_start_time = std::chrono::high_resolution_clock::now();
     u8 *frame_buffer = renderer.render_scene(world, image);
-    const auto render_end_time = std::chrono::high_resolution_clock::now();
-
-    std::cout << "Frame render time :: "
-              << std::chrono::duration<double, std::milli>(render_end_time - render_start_time) << std::endl;
 
     // Write rendered image to file.
     image.write_to_file(frame_buffer, "output_image.png");

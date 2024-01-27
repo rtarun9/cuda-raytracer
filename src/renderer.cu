@@ -4,6 +4,7 @@
 
 #include "random_num_gen.hpp"
 #include <algorithm>
+#include <chrono>
 #include <cuda_runtime.h>
 #include <vector_types.h>
 
@@ -197,6 +198,8 @@ __host__ u8 *renderer_t::render_scene(const scene::scene_t &scene, image_t &imag
     utils::cuda_check(
         cudaMemcpy(dev_scene_ptr, &scene, sizeof(scene::scene_t), cudaMemcpyKind::cudaMemcpyHostToDevice));
 
+    const auto render_start_time = std::chrono::high_resolution_clock::now();
+
     raytracing_kernel<<<blocks_per_grid, threads_per_block>>>(
         sample_count, max_depth, camera_center, upper_left_pixel_position, pixel_delta_u, pixel_delta_v, defocus_u,
         defocus_v, dev_scene_ptr, image.width, image.height, unified_frame_buffer);
@@ -205,7 +208,12 @@ __host__ u8 *renderer_t::render_scene(const scene::scene_t &scene, image_t &imag
     cudaError_t last_error = cudaGetLastError();
     utils::cuda_check(last_error);
 
+    const auto render_end_time = std::chrono::high_resolution_clock::now();
+
     std::cout << "Kernel execution complete" << std::endl;
+    std::cout << "Frame render time :: "
+              << std::chrono::duration<double, std::milli>(render_end_time - render_start_time) << " milli seconds."
+              << std::endl;
 
     utils::cuda_check(cudaFree(dev_scene_ptr));
 

@@ -7,7 +7,7 @@
 #include "scene/scene.hpp"
 #include "utils.hpp"
 
-// Abstraction for rendering a scene given camera position, scene, and image (that will contain the final rendered
+// Abstraction for rendering a scene given camera position, scene, and frame_buffer (that will contain the final rendered
 // output).
 
 class renderer_t

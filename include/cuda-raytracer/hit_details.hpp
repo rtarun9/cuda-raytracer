@@ -14,5 +14,4 @@ struct hit_details_t
     bool back_face{false};
 
     size_t material_index{};
-    material_type_t mat_type{};
 };
