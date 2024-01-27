@@ -184,13 +184,11 @@ __host__ u8 *renderer_t::render_scene(const scene::scene_t &scene, image_t &imag
     const auto upper_left_pixel_position = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5f;
 
     // Prepare buffers for cuda kernel.
-    u8 *host_frame_buffer = (unsigned char *)malloc(sizeof(u8) * image.width * image.height * 3);
-
-    u8 *dev_frame_buffer = nullptr;
-    utils::cuda_check(cudaMalloc(&dev_frame_buffer, (size_t)(sizeof(u8) * image.width * image.height * 3)));
+    u8 *unified_frame_buffer = nullptr;
+    utils::cuda_check(cudaMallocManaged(&unified_frame_buffer, sizeof(u8) * image.width * image.height * 3));
 
     // Prepare kernel execution launch parameters.
-    const dim3 threads_per_block = dim3(16, 16, 1);
+    const dim3 threads_per_block = dim3(12, 8, 1);
     const dim3 blocks_per_grid = dim3((image.width + threads_per_block.x - 1) / threads_per_block.x,
                                       (image.height + threads_per_block.y - 1) / threads_per_block.y, 1u);
 
@@ -201,21 +199,15 @@ __host__ u8 *renderer_t::render_scene(const scene::scene_t &scene, image_t &imag
 
     raytracing_kernel<<<blocks_per_grid, threads_per_block>>>(
         sample_count, max_depth, camera_center, upper_left_pixel_position, pixel_delta_u, pixel_delta_v, defocus_u,
-        defocus_v, dev_scene_ptr, image.width, image.height, dev_frame_buffer);
+        defocus_v, dev_scene_ptr, image.width, image.height, unified_frame_buffer);
+    cudaDeviceSynchronize();
 
     cudaError_t last_error = cudaGetLastError();
     utils::cuda_check(last_error);
 
     std::cout << "Kernel execution complete" << std::endl;
 
-    // Copy dev_frame_buffer into host frame_buffer.
-    utils::cuda_check(cudaMemcpy(host_frame_buffer, dev_frame_buffer, 3 * sizeof(u8) * image.width * image.height,
-                                 cudaMemcpyDeviceToHost));
-
-    std::cout << "Data copied from device memory to host" << std::endl;
-
-    utils::cuda_check(cudaFree(dev_frame_buffer));
     utils::cuda_check(cudaFree(dev_scene_ptr));
 
-    return host_frame_buffer;
+    return unified_frame_buffer;
 }

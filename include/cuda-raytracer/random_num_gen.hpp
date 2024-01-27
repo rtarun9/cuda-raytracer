@@ -16,8 +16,13 @@ __host__ __device__ static inline float get_random_float_in_range_0_1()
 
     return distribution(generator);
 #else
-    // note(rtarun9) : TODO : Explore random number gen (device side) using curand.
-    return 0;
+
+    // Reference :
+    // https://stackoverflow.com/questions/22425283/how-could-we-generate-random-numbers-in-cuda-c-with-different-seed-on-each-run
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    curandState state;
+    curand_init(clock64(), i, 0, &state);
+    return curand_uniform(&state);
 #endif
 }
 
