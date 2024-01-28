@@ -6,7 +6,16 @@
 #include "scene/scene.hpp"
 #include "types.hpp"
 
-int main()
+// Note : SDL sample code from : https://wiki.libsdl.org/SDL3/README/cmake
+// Cuda-GL interop documentation :
+// https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#graphics-interoperability
+
+#include "glad/include/glad/glad.h"
+
+#define SDL_MAIN_HANDLED
+#include <SDL.h>
+
+int main(int argc, char **argv)
 {
     // Image setup.
     constexpr float aspect_ratio = 16.0f / 9.0f;
@@ -14,6 +23,39 @@ int main()
     constexpr u32 image_height = std::max(static_cast<u32>((float)image_width / aspect_ratio), 1u);
 
     image_t image(image_width, image_height);
+
+    // SDL initialization and window creation.
+    if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
+    {
+        SDL_Log("SDL_Init failed (%s)", SDL_GetError());
+        return -1;
+    }
+
+    SDL_Window *window =
+        SDL_CreateWindow("cuda-raytracer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                         static_cast<int>(image_width), static_cast<int>(image_height), SDL_WINDOW_OPENGL);
+    if (window == nullptr)
+    {
+        SDL_Log("SDL_CreateWindow failed (%s)", SDL_GetError());
+        return -1;
+    }
+
+    // Create Opengl context (ref : https://gist.github.com/xeekworx/4c9a95c5eb67a1d3fc1fd35bacf84236)
+    SDL_GLContext context = SDL_GL_CreateContext(window);
+    if (context == nullptr)
+    {
+        SDL_Log("SDL_GL_CreateContext failed (%s)", SDL_GetError());
+        return -1;
+    }
+
+    SDL_GL_MakeCurrent(window, context);
+
+    // Initialize glad.
+    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress))
+    {
+        std::cout << "Failed to initialize glad.";
+        return -1;
+    }
 
     // Renderer config setup.
     renderer_t renderer{};
@@ -83,12 +125,38 @@ int main()
     world.add_sphere(sphere4);
 
     // Begin render loop.
-    u8 *frame_buffer = renderer.render_scene(world, image);
+    // u8 *frame_buffer = renderer.render_scene(world, image);
+
+    glViewport(0, 0, image_width, image_height);
+
+    bool quit = false;
+    while (!quit)
+    {
+        SDL_Event event;
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_QUIT)
+            {
+                quit = true;
+            }
+
+            const u8 *keyboard_state = SDL_GetKeyboardState(nullptr);
+            if (keyboard_state[SDL_SCANCODE_ESCAPE])
+            {
+                quit = true;
+            }
+        }
+
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        SDL_GL_SwapWindow(window);
+    }
 
     // Write rendered image to file.
-    image.write_to_file(frame_buffer, "output_image.png");
+    // image.write_to_file(frame_buffer, "output_image.png");
 
-    cudaFree(frame_buffer);
+    // cudaFree(frame_buffer);
 
     return EXIT_SUCCESS;
 }
