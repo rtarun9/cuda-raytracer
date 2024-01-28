@@ -18,11 +18,13 @@ __host__ __device__ static inline float get_random_float_in_range_0_1()
 #else
 
     // Reference :
-    // https://stackoverflow.com/questions/22425283/how-could-we-generate-random-numbers-in-cuda-c-with-different-seed-on-each-run
     int i = threadIdx.x + blockIdx.x * blockDim.x;
-    curandState state;
-    curand_init(clock64(), i, 0, &state);
-    return curand_uniform(&state);
+    int j = threadIdx.y + blockIdx.y * blockDim.y;
+
+    const float prod = i * 12.9898 + j * 78.233; 
+    const float sin_prod = sin(prod * clock());
+
+    return sin_prod - floorf(sin_prod);
 #endif
 }
 
