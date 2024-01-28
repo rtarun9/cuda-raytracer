@@ -42,7 +42,7 @@ __global__ void raytracing_kernel(int sample_count, int max_depth, const math::f
                                   const math::float3 upper_left_pixel_position, const math::float3 pixel_delta_u,
                                   const math::float3 pixel_delta_v, const math::float3 defocus_u,
                                   const math::float3 defocus_v, const scene::scene_t *scene, int image_width,
-                                  int image_height, unsigned char *const frame_buffer)
+                                  int image_height, u32 *const frame_buffer, bool is_moving)
 {
 
     const int col = threadIdx.x + blockIdx.x * blockDim.x;
@@ -124,35 +124,51 @@ __global__ void raytracing_kernel(int sample_count, int max_depth, const math::f
     color = math::float3(sqrt(color.x), sqrt(color.y), sqrt(color.z));
 
     // Get flattend index of current pixel's contribution to framebuffer.
-    int index = 3 * col + row * image_width * 3;
-    frame_buffer[index] = color.x * 255;
-    frame_buffer[index + 1] = color.y * 255;
-    frame_buffer[index + 2] = color.z * 255;
+    int index = col + row * image_width;
+    math::float3 previous_framebuffer_color =
+        math::float3(((frame_buffer[index] & 0xFF000000) >>  24) / 255.0f, ((frame_buffer[index] & 0x00FF0000) >> 16) / 255.0f,
+                     ((frame_buffer[index] & 0x0000FF00) >> 8) / 255.0f);
+
+    u32 output_color_value = 0;
+
+    if (!is_moving)
+    {
+        color = previous_framebuffer_color * 0.7f + color * 0.3f;
+    }
+
+    output_color_value = int(color.x * 255.0);
+    output_color_value = (output_color_value << 8) | int(color.y * 255.0);
+    output_color_value = (output_color_value << 8) | int(color.z * 255.0);
+    output_color_value = (output_color_value << 8) | 255;
+
+    frame_buffer[index] = output_color_value;
 
     return;
 }
 
-__host__ u8 *renderer_t::render_scene(const scene::scene_t &scene, image_t &image) const
+__host__ void renderer_t::render_scene(const scene::scene_t &scene, const u32 image_width, const u32 image_height,
+                                       u32 *unified_frame_buffer, bool is_moving)
 {
     // Viewport setup.
     // The viewport is a rectangular region / grid in the 3D world that contains the image pixel grid.
     // The viewport in some terms is like the virtual window we use to look into the 3d world.
     // In rasterization it is the near plane of the viewing frustum.
     const float viewport_height = 2.0f * tanf(utils::degree_to_radians(vertical_fov / 2.0f)) * focus_distance;
-    const float viewport_width = viewport_height * (static_cast<float>(image.width) / static_cast<float>(image.height));
+    const float viewport_width = viewport_height * (static_cast<float>(image_width) / static_cast<float>(image_height));
 
-    std::cout << "Viewport width and height : " << viewport_width << ", " << viewport_height << std::endl;
+    // std::cout << "Viewport width and height : " << viewport_width << ", " << viewport_height << std::endl;
 
     // Setup of camera vectors.
 
     // Camera direction vectors to establish basis vectors.
-    const math::float3 camera_front = (camera_look_at - camera_center).normalize();
+    camera_front = (camera_look_at - camera_center).normalize();
 
     const math::float3 world_up = math::float3(0.0f, 1.0f, 0.0f);
-    const math::float3 camera_right = math::float3::cross(world_up, camera_front).normalize();
-    const math::float3 camera_up = math::float3::cross(camera_front, camera_right).normalize();
+    camera_right = math::float3::cross(world_up, camera_front).normalize();
+    camera_up = math::float3::cross(camera_front, camera_right).normalize();
 
-    std::cout << "camera_front, right, up : " << camera_front << " " << camera_right << " " << camera_up << std::endl;
+    // std::cout << "camera_front, right, up : " << camera_front << " " << camera_right << " " << camera_up <<
+    // std::endl;
 
     // Vectors along the viewport edge, u and v. Useful for getting the world space from image space coordinates.
     const math::float3 viewport_u = camera_right * viewport_width;
@@ -160,7 +176,7 @@ __host__ u8 *renderer_t::render_scene(const scene::scene_t &scene, image_t &imag
 
     // Computation for focal radius and defocus u and v.
     const float defocus_radius = tan(utils::degree_to_radians(defocus_angle) / 2.0f) * focus_distance;
-    std::cout << "Defocus radius :: " << defocus_radius << std::endl;
+    // std::cout << "Defocus radius :: " << defocus_radius << std::endl;
 
     // Camera defocus basis vectors (the basis vectors are scaled by defocus radius).
     const math::float3 defocus_u = camera_right * defocus_radius;
@@ -175,8 +191,8 @@ __host__ u8 *renderer_t::render_scene(const scene::scene_t &scene, image_t &imag
     // viewport pixel grid evenly divided into w x h identical regions.s
 
     // Pixel delta : horizontal and vertical vectors between pixel location's.
-    const auto pixel_delta_u = viewport_u / static_cast<float>(image.width);
-    const auto pixel_delta_v = viewport_v / static_cast<float>(image.height);
+    const auto pixel_delta_u = viewport_u / static_cast<float>(image_width);
+    const auto pixel_delta_v = viewport_v / static_cast<float>(image_height);
 
     // Note that camera center (a point) + camera_front * focus_distance (a vector) equals a point. (i.e the
     // displacement of point by a vector yields a point).
@@ -185,13 +201,11 @@ __host__ u8 *renderer_t::render_scene(const scene::scene_t &scene, image_t &imag
     const auto upper_left_pixel_position = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5f;
 
     // Prepare buffers for cuda kernel.
-    u8 *unified_frame_buffer = nullptr;
-    utils::cuda_check(cudaMallocManaged(&unified_frame_buffer, sizeof(u8) * image.width * image.height * 3));
 
     // Prepare kernel execution launch parameters.
     const dim3 threads_per_block = dim3(12, 8, 1);
-    const dim3 blocks_per_grid = dim3((image.width + threads_per_block.x - 1) / threads_per_block.x,
-                                      (image.height + threads_per_block.y - 1) / threads_per_block.y, 1u);
+    const dim3 blocks_per_grid = dim3((image_width + threads_per_block.x - 1) / threads_per_block.x,
+                                      (image_height + threads_per_block.y - 1) / threads_per_block.y, 1u);
 
     scene::scene_t *dev_scene_ptr = nullptr;
     utils::cuda_check(cudaMalloc(&dev_scene_ptr, sizeof(scene::scene_t)));
@@ -202,7 +216,7 @@ __host__ u8 *renderer_t::render_scene(const scene::scene_t &scene, image_t &imag
 
     raytracing_kernel<<<blocks_per_grid, threads_per_block>>>(
         sample_count, max_depth, camera_center, upper_left_pixel_position, pixel_delta_u, pixel_delta_v, defocus_u,
-        defocus_v, dev_scene_ptr, image.width, image.height, unified_frame_buffer);
+        defocus_v, dev_scene_ptr, image_width, image_height, unified_frame_buffer, is_moving);
     cudaDeviceSynchronize();
 
     cudaError_t last_error = cudaGetLastError();
@@ -210,12 +224,10 @@ __host__ u8 *renderer_t::render_scene(const scene::scene_t &scene, image_t &imag
 
     const auto render_end_time = std::chrono::high_resolution_clock::now();
 
-    std::cout << "Kernel execution complete" << std::endl;
-    std::cout << "Frame render time :: "
-              << std::chrono::duration<double, std::milli>(render_end_time - render_start_time) << " milli seconds."
-              << std::endl;
+    // std::cout << "Kernel execution complete" << std::endl;
+    // std::cout << "Frame render time :: "
+    //          << std::chrono::duration<double, std::milli>(render_end_time - render_start_time) << " milli seconds."
+    //         << std::endl;
 
     utils::cuda_check(cudaFree(dev_scene_ptr));
-
-    return unified_frame_buffer;
 }
