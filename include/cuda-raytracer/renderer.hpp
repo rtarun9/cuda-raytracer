@@ -7,14 +7,15 @@
 #include "scene/scene.hpp"
 #include "utils.hpp"
 
-// Abstraction for rendering a scene given camera position, scene, and frame_buffer (that will contain the final rendered
-// output).
+// Abstraction for rendering a scene given camera position, scene, and frame_buffer (that will contain the final
+// rendered output).
 
 class renderer_t
 {
   public:
     // Returns framebuffer (i.e the output of cuda kernel) in host-visible memory.
-    __host__ u8 *render_scene(const scene::scene_t &scene, image_t &image) const;
+    __host__ void render_scene(const scene::scene_t &scene, u32 image_width, u32 image_height,
+                               u32 *unified_frame_buffer, bool is_moving);
 
   public:
     // The vertical fov is used to determine viewport height.
@@ -30,6 +31,10 @@ class renderer_t
     // Camera settings.
     math::float3 camera_center{0.0f, 0.0f, 0.0f};
     math::float3 camera_look_at{0.0f, 0.0f, 1.0f};
+
+    math::float3 camera_right{};
+    math::float3 camera_up{};
+    math::float3 camera_front{};
 
     // The distance from the camera to that plane where all objects appear in perfect focus.
     // As we move away from the focal distance, objects will appear to be linearly more blurrier.
