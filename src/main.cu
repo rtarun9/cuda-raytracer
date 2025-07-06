@@ -8,16 +8,23 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
-__global__ void raytrace(float2 inverse_window_coords, size_t render_target_width, uint8_t *render_target)
+__global__ void raytrace(float2 inverse_window_coords, size_t render_target_width, math::float3 camera_pos,
+                         uint8_t *render_target)
 {
     // Orthogonal projection is used for now.
     size_t xcoord = threadIdx.x + blockIdx.x * blockDim.x;
     size_t ycoord = threadIdx.y + blockIdx.y * blockDim.y;
 
+    // Clear RT
+    uint32_t pixel_index = (xcoord + ycoord * render_target_width) * 3;
+    render_target[pixel_index + 0] = 0x00;
+    render_target[pixel_index + 1] = 0x00;
+    render_target[pixel_index + 2] = 0x00;
+
     float2 screen_space_coords = float2{xcoord * inverse_window_coords.x, ycoord * inverse_window_coords.y};
     float2 ndc = float2{screen_space_coords.x * 2.0f - 1.0f, screen_space_coords.y * 2.0f - 1.0f};
 
-    math::float3 ray_origin = math::float3(ndc.x, ndc.y, 0.0f);
+    math::float3 ray_origin = math::float3(ndc.x, ndc.y, 0.0f) + camera_pos;
     math::float3 ray_direction = ray_origin + math::float3(0.0f, 0.0f, 1.0f);
     ray_direction = ray_direction.normalize();
 
@@ -131,6 +138,11 @@ int main(int argc, char **argv)
     uint8_t *dev_render_target = nullptr;
     cudaMalloc((void **)&dev_render_target, (size_t)(3 * WINDOW_HEIGHT * WINDOW_WIDTH));
 
+    math::float3 camera_pos = math::float3(0.0f, 0.0f, 0.0f);
+    float pitch = 0.0f;
+    float yaw = 0.0f;
+    float roll = 0.0f;
+
     bool quit = false;
     while (!quit)
     {
@@ -143,6 +155,48 @@ int main(int argc, char **argv)
             }
         }
 
+        const bool *keyboard_state = SDL_GetKeyboardState(nullptr);
+
+        if (keyboard_state[SDL_SCANCODE_ESCAPE])
+        {
+            quit = true;
+        }
+
+        if (keyboard_state[SDL_SCANCODE_W])
+        {
+            camera_pos.z += 0.05f;
+        }
+        else if (keyboard_state[SDL_SCANCODE_S])
+        {
+            camera_pos.z -= 0.05f;
+        }
+
+        if (keyboard_state[SDL_SCANCODE_A])
+        {
+            camera_pos.x -= 0.05f;
+        }
+        else if (keyboard_state[SDL_SCANCODE_D])
+        {
+            camera_pos.x += 0.05f;
+        }
+
+        if (keyboard_state[SDL_SCANCODE_UP])
+        {
+            camera_front += 0.05f;
+        }
+        else if (keyboard_state[SDL_SCANCODE_DOWN])
+        {
+            camera_pos.z -= 0.05f;
+        }
+
+        if (keyboard_state[SDL_SCANCODE_A])
+        {
+            camera_pos.x -= 0.05f;
+        }
+        else if (keyboard_state[SDL_SCANCODE_D])
+        {
+            camera_pos.x += 0.05f;
+        }
         uint8_t *pixels = nullptr;
         int pitch = 3 * WINDOW_WIDTH;
 
@@ -151,7 +205,7 @@ int main(int argc, char **argv)
         constexpr dim3 grid_dim = dim3(WINDOW_WIDTH / 32, WINDOW_HEIGHT / 32, 1);
         constexpr dim3 block_dim = dim3(32, 32, 1);
 
-        raytrace<<<grid_dim, block_dim>>>(float2{1.0f / WINDOW_WIDTH, 1.0f / WINDOW_HEIGHT}, WINDOW_WIDTH,
+        raytrace<<<grid_dim, block_dim>>>(float2{1.0f / WINDOW_WIDTH, 1.0f / WINDOW_HEIGHT}, WINDOW_WIDTH, camera_pos,
                                           dev_render_target);
         cudaError_t kernel_exec_error = cudaGetLastError();
         if (kernel_exec_error != CUDA_SUCCESS)
