@@ -57,6 +57,46 @@ __global__ void raytrace(float2 inverse_window_coords, size_t render_target_widt
         render_target[pixel_index + 1] = 0x0f;
         render_target[pixel_index + 2] = 0xf0;
     }
+
+    // Le slab test
+    // Consider a 3d rect. It can be represented with 6 coords.
+    math::float3 rect_min = math::float3(-0.7f, -0.5f, 4.0f);
+    math::float3 rect_max = math::float3(0.25f, 0.5f, 4.5f);
+
+    // If a ray actually intersects, for each dim there will be tmin and tmax. Where,
+    // point = origin + direction * t
+    // t = (point - origin) / direction.
+    // t1 = (rect_min_dim - origin) / direction. Similar for t2.
+    // Do this for each dim and keep clipping the ray segment. If finally tmin < tmax, intersection occured.
+
+    float tmin = 0.0f;
+    float tmax = 1e30;
+
+    float t1 = (rect_min.x - ray_origin.x) / ray_direction.x;
+    float t2 = (rect_max.x - ray_origin.x) / ray_direction.x;
+
+    tmin = max(tmin, min(t1, t2));
+    tmax = min(tmax, max(t1, t2));
+
+    t1 = (rect_min.y - ray_origin.y) / ray_direction.y;
+    t2 = (rect_max.y - ray_origin.y) / ray_direction.y;
+
+    tmin = max(tmin, min(t1, t2));
+    tmax = min(tmax, max(t1, t2));
+
+    t1 = (rect_min.z - ray_origin.z) / ray_direction.z;
+    t2 = (rect_max.z - ray_origin.z) / ray_direction.z;
+
+    tmin = max(tmin, min(t1, t2));
+    tmax = min(tmax, max(t1, t2));
+
+    if (tmin < tmax)
+    {
+        uint32_t pixel_index = (xcoord + ycoord * render_target_width) * 3;
+        render_target[pixel_index + 0] = 0x33;
+        render_target[pixel_index + 1] = 0x33;
+        render_target[pixel_index + 2] = 0x33;
+    }
 }
 
 int main(int argc, char **argv)
