@@ -1,5 +1,3 @@
 # cuda-raytracer
 
-![](./output_image.png)
-
-This image took 22 seconds to render on a Nvidia GTX 1650.
+Raytracing with cuda (as the name suggests)
