@@ -1,4 +1,3 @@
-#include "float3.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cuda.h>
@@ -9,20 +8,23 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
-__global__ void raytrace(float2 inverse_window_coords, size_t render_target_width, size_t render_target_height,
-                         math::float3 camera_pos, uint8_t *render_target)
+#include "float3.hpp"
+#include "sdl_wrapper.hpp"
+
+__global__ void raytrace(float2 inverse_window_coords, uint2 render_target_size, math::float3 camera_pos,
+                         uint8_t *render_target)
 {
     // Orthogonal projection is used for now.
     size_t xcoord = threadIdx.x + blockIdx.x * blockDim.x;
     size_t ycoord = threadIdx.y + blockIdx.y * blockDim.y;
 
-    if (xcoord >= render_target_width || ycoord >= render_target_height)
+    if (xcoord >= render_target_size.x || ycoord >= render_target_size.y)
     {
         return;
     }
 
     // Clear RT
-    uint32_t pixel_index = (xcoord + ycoord * render_target_width) * 3;
+    uint32_t pixel_index = (xcoord + ycoord * render_target_size.x) * 3;
     render_target[pixel_index + 0] = 0x10;
     render_target[pixel_index + 1] = 0x10;
     render_target[pixel_index + 2] = 0x10;
@@ -37,7 +39,7 @@ __global__ void raytrace(float2 inverse_window_coords, size_t render_target_widt
     math::float3 ray_origin_visualize = ray_direction * 0.5f + 0.5f;
     render_target[pixel_index + 0] = uint8_t(ray_origin_visualize.x * 255.0f);
     render_target[pixel_index + 1] = uint8_t(ray_origin_visualize.y * 255.0f);
-    render_target[pixel_index + 2] = uint8_t(ray_origin_visualize.z * 255.0f);
+    // render_target[pixel_index + 2] = uint8_t(ray_origin_visualize.z * 255.0f);
 }
 
 int main(int argc, char **argv)
@@ -46,37 +48,14 @@ int main(int argc, char **argv)
     cudaGetDeviceProperties(&device_prop, 0);
     std::cout << "Cuda device name :: " << device_prop.name << '\n';
 
-    // Setup SDL.
-    constexpr uint32_t WINDOW_WIDTH = 1920;
-    constexpr uint32_t WINDOW_HEIGHT = 1080;
+    sdl_wrapper::render_context_t sdl_context(uint2{1920, 1080});
+    const size_t render_surface_size_bytes = sdl_context.m_client_dim.x * sdl_context.m_client_dim.y * 3;
+    const uint2 render_surface_size = sdl_context.m_client_dim;
 
-    // SDL initialization and window creation.
-    if (!SDL_Init(SDL_INIT_VIDEO))
-    {
-        SDL_Log("SDL_Init failed (%s)", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-
-    SDL_Window *sdl_window =
-        SDL_CreateWindow("cuda-raytracer", static_cast<int>(WINDOW_WIDTH), static_cast<int>(WINDOW_HEIGHT),
-                         SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIGH_PIXEL_DENSITY);
-    if (sdl_window == nullptr)
-    {
-        SDL_Log("SDL_CreateWindow failed (%s)", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-
-    int client_width = 0;
-    int client_height = 0;
-
-    SDL_Renderer *sdl_renderer = SDL_CreateRenderer(sdl_window, nullptr);
-    SDL_GetRenderOutputSize(sdl_renderer, &client_width, &client_height);
-    std::cout << "Client area width and height :: " << client_width << ", " << client_height << '\n';
-    SDL_Texture *sdl_texture = SDL_CreateTexture(sdl_renderer, SDL_PixelFormat::SDL_PIXELFORMAT_RGB24,
-                                                 SDL_TEXTUREACCESS_STREAMING, client_width, client_height);
+    const float2 inverse_render_surface_size = {1.0f / render_surface_size.x, 1.0f / render_surface_size.y};
 
     uint8_t *dev_render_target = nullptr;
-    cudaMalloc((void **)&dev_render_target, (size_t)(3 * client_width * client_height));
+    cudaMalloc((void **)&dev_render_target, render_surface_size_bytes);
 
     math::float3 camera_pos = math::float3(0.0f, 0.0f, 0.0f);
 
@@ -117,34 +96,27 @@ int main(int argc, char **argv)
             camera_pos.x += 0.05f;
         }
 
-        uint8_t *pixels = nullptr;
-        int pitch = 3 * client_width;
+        uint8_t *pixels = sdl_context.new_frame();
 
-        SDL_LockTexture(sdl_texture, nullptr, (void **)&pixels, &pitch);
-
-        dim3 grid_dim = dim3((client_width + 31) / 32, (client_height + 31) / 32, 1);
+        dim3 grid_dim = dim3((render_surface_size.x + 31) / 32, (render_surface_size.y + 31) / 32, 1);
         dim3 block_dim = dim3(32, 32, 1);
 
-        raytrace<<<grid_dim, block_dim>>>(float2{1.0f / client_width, 1.0f / client_height}, client_width,
-                                          client_height, camera_pos, dev_render_target);
+        raytrace<<<grid_dim, block_dim>>>(inverse_render_surface_size, render_surface_size, camera_pos,
+                                          dev_render_target);
         cudaError_t kernel_exec_error = cudaGetLastError();
         if (kernel_exec_error != CUDA_SUCCESS)
         {
             printf("Cuda error: %d\n", kernel_exec_error);
         };
 
-        cudaError_t memcpy_exec_error = cudaMemcpy(pixels, dev_render_target, 3 * client_width * client_height,
-                                                   cudaMemcpyKind::cudaMemcpyDeviceToHost);
+        cudaError_t memcpy_exec_error =
+            cudaMemcpy(pixels, dev_render_target, render_surface_size_bytes, cudaMemcpyKind::cudaMemcpyDeviceToHost);
         if (memcpy_exec_error != CUDA_SUCCESS)
         {
             printf("Cuda error: %d\n", memcpy_exec_error);
         };
 
-        SDL_UnlockTexture(sdl_texture);
-
-        SDL_RenderClear(sdl_renderer);
-        SDL_RenderTexture(sdl_renderer, sdl_texture, nullptr, nullptr);
-        SDL_RenderPresent(sdl_renderer);
+        sdl_context.render();
     }
 
     return 0;
